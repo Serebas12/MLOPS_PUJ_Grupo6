@@ -1,0 +1,17 @@
+# Ignorar el entorno virtual
+venv/
+# O, si tu entorno virtual tiene otro nombre:
+env/
+
+# Archivos y carpetas de Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Otros archivos que podrías querer ignorar
+.DS_Store
+*.log
