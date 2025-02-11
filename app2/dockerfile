@@ -1,7 +1,0 @@
-FROM alpine:latest
-
-WORKDIR /app2
-
-COPY probando.txt /app2/
-
-CMD [ "ls","-l","/app2/" ]
