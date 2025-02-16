@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  jupyterlab:
+    image: jupyter/scipy-notebook:latest
+    container_name: jupyter_lab
+    ports:
+      - "8888:8888"
+    volumes:
+      - jupyter_data:/home/jovyan/work
+      - ./creacion_modelo.ipynb:/home/jovyan/work/creacion_modelo.ipynb
+    command: ["start-notebook.sh", "--NotebookApp.token=''"]
+
+  api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: api_models
+    ports:
+      - "8989:8989"
+    volumes:
+      - jupyter_data:/home/jovyan/work  # Asegurar misma ruta de trabajo
+    depends_on:
+      - jupyterlab  # Garantiza que Jupyter se inicie antes
+
+volumes:
+  jupyter_data:
