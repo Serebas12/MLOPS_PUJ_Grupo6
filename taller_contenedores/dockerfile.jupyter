@@ -1,0 +1,11 @@
+FROM jupyter/scipy-notebook:latest
+
+RUN pip install --upgrade uv
+
+WORKDIR /home/jovyan/work
+
+COPY requirements_jupyter.txt .
+
+RUN uv pip install -r requirements_jupyter.txt
+
+CMD ["start-notebook.sh", "--NotebookApp.token=''"]

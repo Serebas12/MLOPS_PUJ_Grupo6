@@ -1,8 +1,10 @@
-version: "3.8"
+version: "1.0"
 
 services:
   jupyterlab:
-    image: jupyter/scipy-notebook:latest
+    build:
+      context: .
+      dockerfile: dockerfile.jupyter
     container_name: jupyter_lab
     ports:
       - "8888:8888"
