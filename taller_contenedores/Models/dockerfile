@@ -1,8 +1,8 @@
 # Imagen base de Python
-FROM python:3.10-slim
+FROM jupyter/scipy-notebook:latest
 
 # Directorio de trabajo
-WORKDIR /Models
+WORKDIR /home/jovyan/work
 
 # Instalación Inicial  
 RUN pip install --upgrade pip
@@ -22,4 +22,4 @@ RUN uv pip install --system jupyterlab ipywidgets ipykernel && \
 EXPOSE 8888
 
 # Ejecutar JupyterLab sin token y en el puerto correcto
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]
+CMD ["start-notebook.sh", "--NotebookApp.token=''"]
