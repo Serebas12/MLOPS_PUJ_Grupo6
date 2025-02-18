@@ -24,7 +24,7 @@ async def list_models():
     Lista todos los archivos .pkl en el directorio de trabajo.
     """
     try:
-        modelos = [f for f in os.listdir(MODEL_DIR) if f.endswith(".pkl")]
+        modelos = [f.replace(".pkl", "") for f in os.listdir(MODEL_DIR) if f.endswith(".pkl")]
         return {"modelos_disponibles": modelos}
     except Exception as e:
         return {"error": f"No se pudieron listar los modelos: {str(e)}"}

@@ -6,6 +6,6 @@ WORKDIR /home/jovyan/work
 
 COPY requirements_jupyter.txt .
 
-RUN uv pip install -r requirements_jupyter.txt
+RUN uv pip install --system -r requirements_jupyter.txt
 
 CMD ["start-notebook.sh", "--NotebookApp.token=''"]
