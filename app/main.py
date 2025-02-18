@@ -1,3 +1,5 @@
+import os
+import logging
 from fastapi import FastAPI
 from pydantic import BaseModel
 import pickle
@@ -10,6 +12,25 @@ app = FastAPI(
     description="Esta API tiene 2 modelos que permiten realizar la inferencia de la especie de Pingüinos entre Adelie, Chinstrap y Gentoo",
     version="1.0.0"
 )
+
+log_dir_docker = "/app/logs"  # Ruta dentro del contenedor (volumen de Docker)
+log_dir_local = "/app/logs_local"  # Ruta mapeada a la máquina host
+os.makedirs(log_dir_docker, exist_ok=True)
+os.makedirs(log_dir_local, exist_ok=True)
+log_file_docker = os.path.join(log_dir_docker, "predictions.log")
+log_file_local = os.path.join(log_dir_local, "predictions.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file_docker),  # Guarda logs en el volumen
+        logging.FileHandler(log_file_local),   # Guarda logs por el bind mount
+        #logging.StreamHandler()  # Muestra logs en la consola
+    ]
+)
+
+logger = logging.getLogger()
 
 #Datos requeridos de la solicitud
 class PenguinsInput(BaseModel):
@@ -67,8 +88,10 @@ async def predict(input_data: PenguinsInput):
             prediction = modelRF.predict(data)
             resultado = prediction[0]
 
+            logging.info(f"Predicción realizada: {resultado}")
             return {"prediction": resultado}
         except:
+            logging.info(f"Predicción realizada: no valido")
             return {"prediction": "no valido"}
 
     ### Predicción modelo 2    
@@ -96,9 +119,11 @@ async def predict(input_data: PenguinsInput):
             # Prediccion del modelo
             prediction = modeloSVM.predict(data)
             resultado = prediction[0]
+            logging.info(f"Predicción realizada: {resultado}")
             return {"prediction": resultado}
         
         except:
+            logging.info(f"Predicción realizada: no valido")
             return {"prediction": "no valido"}
         
     else: 

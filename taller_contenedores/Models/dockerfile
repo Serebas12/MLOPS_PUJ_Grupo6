@@ -1,0 +1,25 @@
+# Imagen base de Python
+FROM python:3.10-slim
+
+# Directorio de trabajo
+WORKDIR /Models
+
+# Instalación Inicial  
+RUN pip install --upgrade pip
+RUN pip install uv
+RUN pip install https://github.com/pandas-profiling/pandas-profiling/archive/master.zip
+
+# Copia e instalación de dependencias
+COPY creacion_modelo.ipynb .
+COPY penguins_size.csv .
+COPY requirements.txt .
+
+# Instalar JupyterLab y dependencias
+RUN uv pip install --system jupyterlab ipywidgets ipykernel && \
+    uv pip install --system -r requirements.txt 
+
+# Exponer puerto 8989
+EXPOSE 8888
+
+# Ejecutar JupyterLab sin token y en el puerto correcto
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]
