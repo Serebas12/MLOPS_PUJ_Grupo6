@@ -1,0 +1,40 @@
+# Usa la imagen base oficial de Python 3.11
+FROM python:3.11
+
+# Define argumentos de entorno
+ARG USERNAME=mluser
+ARG UID=1000
+ARG GID=1000
+
+# Crea un grupo y un usuario con los IDs especificados
+RUN groupadd --gid $GID $USERNAME && \
+    useradd --uid $UID --gid $GID --create-home --shell /bin/bash $USERNAME
+
+# Establece el directorio de trabajo
+WORKDIR /home/$USERNAME/workspace
+
+# Actualiza pip e instala 'uv'
+RUN pip install --upgrade pip && \
+    pip install uv
+
+# Copia el archivo pyproject.toml al directorio de trabajo
+COPY workspace/pyproject.toml .
+
+# Instala las dependencias especificadas en pyproject.toml
+RUN uv pip install --system --requirements pyproject.toml
+
+# Copia el archivo Proyecto1.ipynb al directorio de trabajo
+COPY workspace/Proyecto1.ipynb .
+
+# Cambia la propiedad de todos los archivos al usuario creado
+RUN chown -R $USERNAME:$USERNAME /home/$USERNAME
+
+# Expone el puerto 8888 para JupyterLab
+EXPOSE 8888
+
+# Establece el usuario no root para las operaciones siguientes
+USER $USERNAME
+
+# Comando para iniciar JupyterLab utilizando 'uv'
+CMD ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--NotebookApp.token=''"]
+
