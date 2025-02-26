@@ -1,6 +1,7 @@
 feature {
   name: "Cover_Type"
-  type: INT
+  type: BYTES
+  domain: "cover_type_domain"
   presence {
     min_fraction: 1.0
     min_count: 1
@@ -27,6 +28,11 @@ feature {
 feature {
   name: "Hillshade_9am"
   type: INT
+  float_domain {
+    name: "Hillshade_9am_domain"
+    min: 0.0
+    max: 255.0
+  }
   presence {
     min_fraction: 1.0
     min_count: 1
@@ -40,6 +46,11 @@ feature {
 feature {
   name: "Hillshade_Noon"
   type: INT
+  float_domain {
+    name: "Hillshade_Noon_domain"
+    min: 0.0
+    max: 255.0
+  }
   presence {
     min_fraction: 1.0
     min_count: 1
@@ -92,6 +103,11 @@ feature {
 feature {
   name: "Slope"
   type: INT
+  float_domain {
+    name: "slope_domain"
+    min: 0.0
+    max: 90.0
+  }
   presence {
     min_fraction: 1.0
     min_count: 1
