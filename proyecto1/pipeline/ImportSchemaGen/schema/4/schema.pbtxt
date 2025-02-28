@@ -1,7 +1,16 @@
 feature {
   name: "Cover_Type"
   type: BYTES
-  domain: "cover_type_domain"
+  string_domain {
+    name: "cover_type_domain"
+    value: "0"
+    value: "1"
+    value: "2"
+    value: "3"
+    value: "4"
+    value: "5"
+    value: "6"
+  }
   presence {
     min_fraction: 1.0
     min_count: 1
