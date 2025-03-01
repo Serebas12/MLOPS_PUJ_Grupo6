@@ -1,16 +1,7 @@
 feature {
   name: "Cover_Type"
   type: BYTES
-  string_domain {
-    name: "cover_type_domain"
-    value: "0"
-    value: "1"
-    value: "2"
-    value: "3"
-    value: "4"
-    value: "5"
-    value: "6"
-  }
+  domain: "Cover_Type"
   presence {
     min_fraction: 1.0
     min_count: 1
@@ -155,6 +146,16 @@ feature {
       size: 1
     }
   }
+}
+string_domain {
+  name: "Cover_Type"
+  value: "_0"
+  value: "_1"
+  value: "_2"
+  value: "_3"
+  value: "_4"
+  value: "_5"
+  value: "_6"
 }
 string_domain {
   name: "Soil_Type"

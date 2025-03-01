@@ -44,7 +44,6 @@ def preprocessing_fn(inputs):
         outputs[_transformed_name(key)] = tft.compute_and_apply_vocabulary(inputs[key])
 
     # Convert the label strings to an index
-    #outputs[_transformed_name(_Cover_Type_KEY)] = tft.compute_and_apply_vocabulary(inputs[_Cover_Type_KEY])
-
+    outputs[_transformed_name(_Cover_Type_KEY)] = tft.compute_and_apply_vocabulary(inputs[_Cover_Type_KEY])
+    
     return outputs
-
