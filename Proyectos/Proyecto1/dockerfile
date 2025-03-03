@@ -1,0 +1,56 @@
+# Usa la imagen base oficial de Python 3.11
+FROM  tensorflow/tensorflow:2.15.0
+
+# Define argumentos de entorno
+ARG USERNAME=mluser
+ARG UID=1000
+ARG GID=1000
+
+# Crea un grupo y un usuario con los IDs especificados
+RUN groupadd --gid $GID $USERNAME && \
+    useradd --uid $UID --gid $GID --create-home --shell /bin/bash $USERNAME
+
+# Instala dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Actualiza pip a la última versión
+RUN python3 -m pip install --upgrade pip
+
+# Instala Jupyter Lab junto con las herramientas para su correcto funcionamiento
+RUN pip install --no-cache-dir jupyterlab ipykernel ipywidgets 
+
+# Instala dependencias compatibles
+RUN pip install --no-cache-dir \
+    tensorflow-transform==1.16.0 \
+    tensorflow-data-validation==1.16.1 \
+    apache-beam[gcp]==2.50.0 \
+    uv
+# Establece el directorio de trabajo
+WORKDIR /home/$USERNAME/workspace
+
+# Copia el archivo pyproject.toml al directorio de trabajo
+COPY workspace/pyproject.toml .
+
+# Instala la libreria tfx, esta librería contiene en sus dependencias lo que necesitamos para le proyecto
+RUN uv pip install --system tfx 
+# Instala las dependencias que agreguemos a uv, en este ejercicio no lo necesitamos pero dejamos el comentario 
+RUN uv pip install --system --requirements pyproject.toml 
+
+# Copia el archivo Proyecto1.ipynb al directorio de trabajo
+COPY workspace/Proyecto1.ipynb .
+
+# Cambia la propiedad de todos los archivos al usuario creado
+RUN chown -R $USERNAME:$USERNAME /home/$USERNAME
+
+# Expone el puerto 8888 para JupyterLab
+EXPOSE 8888
+
+# Establece el usuario no root para las operaciones siguientes
+USER $USERNAME
+
+# Comando para iniciar JupyterLab utilizando 'uv'
+CMD ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--NotebookApp.token=''"]
+
