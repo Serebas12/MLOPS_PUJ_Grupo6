@@ -24,6 +24,7 @@ Este enfoque modular optimiza la escalabilidad y flexibilidad del desarrollo, pe
 
 La configuración de la carpeta viene dada como:
 
+```plaintext
 📁 Proyectos 
     📁 Proyecto1 
     |── 📁 workspace
@@ -37,6 +38,7 @@ La configuración de la carpeta viene dada como:
     |── 📄README.md                     # Documentación del proyecto sobre el manejo del dockerfile
 |── 📄docker-compose.yaml               # archivo de docker-compose para administrar todos los proyectos
 |── 📄README.md                         # Documentación del proyecto acerca del docker-compose.yaml
+```
 
 
 Para poder inicializar docker-compose para que lance todos los servicios que hallamos diligenciado se hace como:

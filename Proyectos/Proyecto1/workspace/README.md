@@ -6,6 +6,7 @@ El pipeline desarrollado dentro de este notebook permite la ingesta, validación
 
 La distribución de esta carpeta se ve de la siguiente manera: 
 
+```plaintext
 📁 workspace
 |── 📁images
     |── 📄dockerCompose.png     # Pantallazo del comando de docker-compose
@@ -13,7 +14,7 @@ La distribución de esta carpeta se ve de la siguiente manera:
 |── 📄Proyecto1.ipynb           # Notebooks de JupyterLab con el desarrollo
 |── 📄pyproject.toml            # Configuración de dependencias con uv
 |── 📄README.md                 # Documentación del proyecto
-
+```
 
 ##  Requisitos Previos
 

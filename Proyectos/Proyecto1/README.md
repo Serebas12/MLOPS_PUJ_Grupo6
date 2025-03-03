@@ -4,6 +4,7 @@ En este directorio se encuentra el archivo Dockerfile, encargado de construir la
 
 📂 Estructura del Directorio:
 
+```plaintext
 📁 Proyecto1 
 |── 📁 workspace
     |── 📁images
@@ -14,6 +15,7 @@ En este directorio se encuentra el archivo Dockerfile, encargado de construir la
     |── 📄README.md                 # Documentación del proyecto
 |── 📄dockerfile                    # Construcción de la imagen para creación de la imagen del contenedor
 |── 📄README.md                     # Documentación del proyecto
+```
 
 En este caso tenemos seguro lo siguiente:  
 
