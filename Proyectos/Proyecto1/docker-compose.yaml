@@ -1,6 +1,6 @@
 services:
   ml-first-step:
-    build: ./Proyecto1
+    build: ./app
     container_name: ml_container
     ports:
       - "8888:8888"

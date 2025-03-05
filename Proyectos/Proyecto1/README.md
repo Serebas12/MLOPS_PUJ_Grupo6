@@ -6,13 +6,15 @@ Este repositorio contiene los archivos y configuraciones necesarios para el desa
 
 ```plaintext
 📁 Proyecto1 
+|── 📁app
+    |── 📄Proyecto1.ipynb               # Notebooks de JupyterLab con el desarrollo
+    |── 📄pyproject.toml                # Configuración de dependencias con uv
+    |── 📄dockerfile                    # Construcción de la imagen para creación de la imagen del contenedor
 |── 📁images
-    |── 📄dockerCompose.png         # Pantallazo del comando de docker-compose
-    |── 📄notebook.png              # Pantallazo del notebook del contenedor
-|── 📄Proyecto1.ipynb               # Notebooks de JupyterLab con el desarrollo
-|── 📄pyproject.toml                # Configuración de dependencias con uv
-|── 📄dockerfile                    # Construcción de la imagen para creación de la imagen del contenedor
-|── 📄README.md                     # Documentación del proyecto
+    |── 📄dockerCompose.png             # Pantallazo del comando de docker-compose
+    |── 📄notebook.png                  # Pantallazo del notebook del contenedor
+|── 📄docker-compose.yaml               # archivo de docker-compose para administrar todos los proyectos
+|── 📄README.md                         # Documentación del proyecto
 ```
 
 ##      Requisitos Previos  
@@ -61,13 +63,17 @@ docker-compose up --build -d
 ```
 Nota: Se recomienda ejecutar el comando desde el mismo directorio donde se encuentra el archivo docker-compose.yaml. Si necesitas navegar entre directorios en la terminal, puedes consultar esta [guía rapida](https://terminalcheatsheet.com/es/guides/navigate-terminal)
 
-![Ejemplo en Consola](images/dockerCompose.png)
+![Imagen del comando](images/dockerCompose.png)
+
 
 Una vez que el contenedor está en ejecución, se puede acceder a la interfaz de JupyterLab desde cualquier navegador con acceso a la terminal donde está activo el contenedor. Para ello, basta con ingresar la siguiente URL en el navegador:
 
 ```Bash
 http://localhost:8888/lab 
 ```
+
+![Imagen del notebook](images/notebook.png)
+
 
 Al acceder a JupyterLab, se encontrará disponible el notebook **Proyecto1.ipynb**, el cual contiene todo el desarrollo del pipeline de TFX, la gestión de metadatos con MLMD, así como descripciones detalladas del proceso y su implementación paso a paso.
 

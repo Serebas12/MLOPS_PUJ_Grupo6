@@ -27,15 +27,16 @@ La configuración de la carpeta viene dada como:
 ```plaintext
 📁 Proyectos 
     📁 Proyecto1 
+    |── 📁app
+        |── 📄Proyecto1.ipynb               # Notebooks de JupyterLab con el desarrollo
+        |── 📄pyproject.toml                # Configuración de dependencias con uv
+        |── 📄dockerfile                    # Construcción de la imagen para creación de la imagen del contenedor
     |── 📁images
-        |── 📄dockerCompose.png         # Pantallazo del comando de docker-compose
-        |── 📄notebook.png              # Pantallazo del notebook dentro del contenedor
-    |── 📄Proyecto1.ipynb               # Notebooks de JupyterLab con el desarrollo
-    |── 📄pyproject.toml                # Configuración de dependencias con uv
-    |── 📄dockerfile                    # Construcción de la imagen para creación de la imagen del contenedor
-    |── 📄README.md                     # Documentación del proyecto sobre el manejo del dockerfile
-|── 📄docker-compose.yaml               # archivo de docker-compose para administrar todos los proyectos
-|── 📄README.md                         # Documentación del proyecto acerca del docker-compose.yaml
+        |── 📄dockerCompose.png             # Pantallazo del comando de docker-compose
+        |── 📄notebook.png                  # Pantallazo del notebook dentro del contenedor
+    |── 📄README.md                         # Documentación del proyecto sobre el manejo del dockerfile
+    |── 📄docker-compose.yaml               # archivo de docker-compose para administrar todos los proyectos
+|── 📄README.md                             # Documentación del proyecto acerca del docker-compose.yaml
 ```
 
 
