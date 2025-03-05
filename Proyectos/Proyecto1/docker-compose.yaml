@@ -5,7 +5,6 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - ./app:/home/mluser/workspace:rw # Se monta el directorio de trabajo, y permisos de escritura y lectura a doble vía
       - ml_container:/home/mluser/workspace # Se conserva el directorio de montaje del ambiente
     user: "1000:1000" # se le da permisos de usuario al contenedor
     command: ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--NotebookApp.token=''"]
