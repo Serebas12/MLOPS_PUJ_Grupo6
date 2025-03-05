@@ -57,11 +57,10 @@ Este enfoque facilita la reproducibilidad del experimento y asegura un entorno c
 El despliegue del entorno se realiza mediante Docker-Compose, lo que permite la inicialización y administración de los contenedores de manera eficiente. Para ello, se debe ejecutar el siguiente comando dentro del directorio que contiene el archivo **docker-compose.yaml**:
 
 ```Bash
-docker-compose --build -d
+docker-compose up -d
 ```
 Nota: Se recomienda ejecutar el comando desde el mismo directorio donde se encuentra el archivo docker-compose.yaml. Si necesitas navegar entre directorios en la terminal, puedes consultar esta [guía rapida](https://terminalcheatsheet.com/es/guides/navigate-terminal)
 
-![Ejemplo en Consola](images/dockerCompose.png)
 
 Una vez que el contenedor está en ejecución, se puede acceder a la interfaz de JupyterLab desde cualquier navegador con acceso a la terminal donde está activo el contenedor. Para ello, basta con ingresar la siguiente URL en el navegador:
 
