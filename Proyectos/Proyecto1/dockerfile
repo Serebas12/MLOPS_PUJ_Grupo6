@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir \
 WORKDIR /home/$USERNAME/workspace
 
 # Copia el archivo pyproject.toml al directorio de trabajo
-COPY workspace/pyproject.toml .
+COPY pyproject.toml .
 
 # Instala la libreria tfx, esta librería contiene en sus dependencias lo que necesitamos para le proyecto
 RUN uv pip install --system tfx 
@@ -40,7 +40,7 @@ RUN uv pip install --system tfx
 RUN uv pip install --system --requirements pyproject.toml 
 
 # Copia el archivo Proyecto1.ipynb al directorio de trabajo
-COPY workspace/Proyecto1.ipynb .
+COPY Proyecto1.ipynb .
 
 # Cambia la propiedad de todos los archivos al usuario creado
 RUN chown -R $USERNAME:$USERNAME /home/$USERNAME

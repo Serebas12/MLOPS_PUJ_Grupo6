@@ -14,7 +14,7 @@ Estructura y funcionalidades clave:
 
 Ventajas de esta configuración:
 
--   Permite la ejecución y administración centralizada de múltiples proyectos dentro del entorno de Docker.
+-   Permite la ejecución y administración centralizada de múltiples proyectos dentro de diferentes contenedores de Docker.
 
 -   Facilita la colaboración y reutilización de recursos entre diferentes experimentos.
 
@@ -27,13 +27,11 @@ La configuración de la carpeta viene dada como:
 ```plaintext
 📁 Proyectos 
     📁 Proyecto1 
-    |── 📁 workspace
-        |── 📁images
-            |── 📄dockerCompose.png     # Pantallazo del comando de docker-compose
-            |── 📄notebook.png          # Pantallazo del notebook dentro del contenedor
-        |── 📄Proyecto1.ipynb           # Notebooks de JupyterLab con el desarrollo
-        |── 📄pyproject.toml            # Configuración de dependencias con uv
-        |── 📄README.md                 # Documentación del proyecto sobre el notebook Proyecto1.ipynb
+    |── 📁images
+        |── 📄dockerCompose.png         # Pantallazo del comando de docker-compose
+        |── 📄notebook.png              # Pantallazo del notebook dentro del contenedor
+    |── 📄Proyecto1.ipynb               # Notebooks de JupyterLab con el desarrollo
+    |── 📄pyproject.toml                # Configuración de dependencias con uv
     |── 📄dockerfile                    # Construcción de la imagen para creación de la imagen del contenedor
     |── 📄README.md                     # Documentación del proyecto sobre el manejo del dockerfile
 |── 📄docker-compose.yaml               # archivo de docker-compose para administrar todos los proyectos
@@ -47,12 +45,18 @@ Para poder inicializar docker-compose para que lance todos los servicios que hal
 docker-compose up --build -d
 ```
 
-Esto permite iniciar docker-compose para que construya la imagen correspondiente de cada proyecto y aliste dado el caso el volumen necesario.
+Esto permite iniciar docker-compose para que construya la imagen correspondiente de cada proyecto desarrollado y aliste dado el caso los volumenes necesarios.
 
-Para matar todos los contenedores lanzados con docker-compose se utiliza el siguiente comando 
+Para matar todos los contenedores lanzados con docker-compose se utiliza el siguiente comando:
 
 ```Bash
 docker-compose down
 ```
-
 Esto matará todos los contenedores lanzados, pero no borrará ninguna imagen ni volumen creado previamente, esto nos da la posibilidad de poder recuperar los archivos modificados dentro del contenedor y almacenados dentro del volumen.
+
+En dado caso, que uno quiera borrar los volumenes con los cuales se hayan inicializado con el docker-compose, e iniciar nuevamente con la configuración inicial del proyecto el comando para matar los contenedores junto con los volumenes es:
+
+```Bash 
+docker-compose down -v
+```
+Para mayor detalle sobre el desarrollo de los proyectos, dentro del directorio de cada uno se encuentra el correspondiente README.md con el detalle de cada uno.
