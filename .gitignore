@@ -15,3 +15,4 @@ build/
 # Otros archivos que podrías querer ignorar
 .DS_Store
 *.log
+taller_airflow/logs/
