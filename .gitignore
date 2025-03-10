@@ -15,4 +15,11 @@ build/
 # Otros archivos que podrías querer ignorar
 .DS_Store
 *.log
-taller_airflow/logs/
+
+# logs 
+taller_airflow/logs/scheduler/
+
+#   carpetas julio
+taller_airflow_bu/
+
+

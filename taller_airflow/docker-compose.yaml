@@ -50,7 +50,9 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider packages you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.0}
+  build:
+    context: .
+    dockerfile: Dockerfile
   # build: .
   environment:
     &airflow-common-env
@@ -112,6 +114,9 @@ services:
       start_period: 30s
     restart: always
 
+# creamos el servicio de mysql sin quitar postgres con el propósito de conservar la compatibilidad de inicio de airflow
+# de esta manera tenemos airflow conectado a dos motores de bases de datos, donde postgres lo dejamos para el arranque de airflow
+# y mysql quede como servicio alterno para poder cargar los datos del experimento considerandolo como conexión externa
   mysql:
     image: mysql:8
     environment:
@@ -129,6 +134,18 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    restart: always
+
+# Creamos el servidio con FastAPI, debido que ya tenemos esta configuración prevía y funcional, 
+# retomando esta configuración podemos introducirla en el flujo para utilizarla y completar el taller - experimento
+  fastapi:
+    build:
+      context: ./app
+      dockerfile: dockerfile
+    ports:
+      - "8989:8989"
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/app/models
     restart: always
 
   airflow-webserver:
@@ -313,6 +330,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+# instamos dos volumenes para el experimento, donde conservamos el predefinido de postgres y agregamos mysql
 volumes:
   postgres-db-volume:
   mysql-db-volume:
