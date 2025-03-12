@@ -27,7 +27,7 @@ Las tareas descritas anteriormente están embebidas en tasks dentro del DAG de A
 |── 📁plugins                                   
 |── 📄.env                                      #   Variable de entorno para lanzar Apache Airflow
 |── 📄docker-compose.yaml                       #   Docker Compose que almacena el código para el despliegue del experimento
-|── 📄dockerfile                                #   Dockerfile para cargar las dependencias necesarias (no se usar docker compose)
+|── 📄dockerfile                                #   Dockerfile para cargar las dependencias necesarias (no se usa docker compose)
 |── 📄README.md                                 
 |── 📄requirements.txt                          #   Dependencias para el DAG
 ```
@@ -54,7 +54,8 @@ Antes de iniciar con el experimento, es necesario contar con una máquina con la
 
 Para iniciar el entorno de Airflow, es fundamental mantener la estructura de directorios establecida durante el desarrollo del experimento. Esto incluye la correcta configuración de la variable de entorno almacenada en .env y la presencia de los directorios dags, logs y plugins, los cuales son esenciales para el funcionamiento adecuado del sistema.
 
-Si estos directorios no existen, pueden ser creados manualmente o mediante el siguiente comando en VS Code, que fue el entorno utilizado para este desarrollo:
+Si estos directorios no existen, pueden ser creados manualmente o mediante el siguiente comando en VS Code (Windows), que fue el entorno utilizado para este desarrollo:
+
 
 ```Bash
 mkdir dags, logs, plugins
@@ -187,3 +188,5 @@ Para el desarrollo de este experimento, nos apoyamos en los recursos proporciona
 Además, se integró un servicio de FastAPI, permitiendo la utilización del modelo entrenado en el DAG para realizar predicciones en tiempo real. También se agregó un volumen persistente para garantizar el correcto uso de MySQL como base de datos externa, asegurando la persistencia de los datos durante el desarrollo del experimento.
 
 A lo largo del código, se han incluido comentarios que detallan cada paso en la construcción del experimento, facilitando su comprensión y reproducción.
+
+Finalmente, se confirma que, para el despliegue de Airflow, se ha creado un Dockerfile y un archivo de requirements personalizado. Esto permite incorporar las librerías necesarias para el entrenamiento del modelo, garantizando su compatibilidad con los desarrollos realizados en FastAPI y basándose en los requirements establecidos en dichos desarrollos
