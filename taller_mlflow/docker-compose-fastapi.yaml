@@ -1,0 +1,8 @@
+services:
+  api:
+    build:
+      context: ./app
+      dockerfile: dockerfile
+    container_name: api_models
+    ports:
+      - "8989:8989"

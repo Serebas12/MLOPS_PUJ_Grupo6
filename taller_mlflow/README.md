@@ -61,4 +61,33 @@ sudo docker build -t jupyterlab .
 sudo docker run -it --name jupyterlab --rm -e TZ=America/Bogota --network host -p 8888:8888 -v $PWD:/work jupyterlab:latest
 
 
-ip addr
+notebook.: 
+1. se debe crear una red compartida para que los servicios se comuniquen
+docker network create mi_red_compartida
+
+2. ahora se agregan los servicios para que se puedan comunicar 
+docker network connect mi_red_compartida mysql_model_data
+docker network connect mi_red_compartida jupyterlab
+docker network connect mi_red_compartida mlflow_postgres
+docker network connect mi_red_compartida Minio
+
+3. Se verifica que todos los servicios esten incluidos en la red compartida
+docker network inspect mi_red_compartida
+
+4. validación de la ip de la maquina 
+10.43.101.197 
+
+
+api fast api: 
+
+levantar la instancia del api 
+sudo docker-compose -f docker-compose-fastapi.yaml up --build -d
+
+agregarlo a la red compartida 
+docker network connect mi_red_compartida api_models
+
+
+
+
+
+
