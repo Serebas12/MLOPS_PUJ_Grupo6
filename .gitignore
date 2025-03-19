@@ -18,7 +18,7 @@ build/
 
 # logs 
 taller_airflow/logs/scheduler/
-taller_mlflow/minio/.minio.sys/
+taller_mlflow/minio/
 taller_mlflow/JupyterLab/.ipynb_checkpoints/
 taller_mlflow/minio/mlflows3/
 taller_airflow_bu/
