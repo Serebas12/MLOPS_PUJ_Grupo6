@@ -1,5 +1,3 @@
-version: '2'
-
 services:
   minio:
     container_name: Minio
@@ -9,8 +7,8 @@ services:
       - MINIO_ROOT_PASSWORD=supersecret
     image: quay.io/minio/minio:latest
     ports:
-      - '10.43.101.192:9000:9000'
+      - '9000:9000'
       - '9001:9001'
     volumes:
       - ./minio:/data
-    restart: unless-stopped
+    restart: unless-stopped    
