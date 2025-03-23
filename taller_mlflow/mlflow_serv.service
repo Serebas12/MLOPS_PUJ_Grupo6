@@ -1,0 +1,15 @@
+[Unit]
+Description=MLflow tracking server
+After=network.target 
+
+[Service]
+User=estudiante
+Restart=on-failure
+RestartSec=3
+Environment=MLFLOW_S3_ENDPOINT_URL=http://10.43.101.197:9000
+Environment=AWS_ACCESS_KEY_ID=admin
+Environment=AWS_SECRET_ACCESS_KEY=supersecret
+ExecStart= /home/estudiante/Documents/MLOPS_PUJ_Grupo6/taller_mlflow/mlflow/start_mlflow.sh
+
+[Install]
+WantedBy=multi-user.target
