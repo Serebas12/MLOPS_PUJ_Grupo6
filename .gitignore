@@ -18,8 +18,12 @@ build/
 
 # logs 
 taller_airflow/logs/scheduler/
-
-#   carpetas julio
+taller_mlflow/minio/
+taller_mlflow/JupyterLab/.ipynb_checkpoints/
+taller_mlflow/minio/mlflows3/
 taller_airflow_bu/
 
+#   carpetas julio
+taller_mlflow_bu/
+taller_dockerNetwork_bu/
 
