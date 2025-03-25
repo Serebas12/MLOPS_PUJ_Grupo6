@@ -1,7 +1,7 @@
 
 la fuente de datos desde la local
-docker compose -f docker-compose-external.yaml up --build -d
-docker compose -f docker-compose-external.yaml down -v --rmi all
+docker compose -f docker-compose-external.yaml up --build -d 
+docker compose -f docker-compose-external.yaml down -v --rmi all 
 revisar que existe expuesto el servicio en el localhost
 curl http://localhost/
 revisión de la recolección de los datos
@@ -64,7 +64,35 @@ entramos a airflow y verificamos la existencia del DAG, luego corremos el DAG y 
 
 Para corroborar la correcta conexión a api toca tener ya resultados por lo tanto se necesita empezar a crear el DAG para el pipeline del modelo a colocar en producción
 
-(por los modelos publicados, es mejor ya hacerlo con un modelo)
+para iniciar con el proceso, dentro de la interfaz de airflow, creamos la conexión a la base de datos con los siguientes datos
+
+connection id: mysql_default
+connection type: mysql
+description: Almacenamiento de los datos obtenidos desde la api
+host: mysql-data-store
+schema: datadb
+login: admin
+password: supersecret
+port: 3306
+
+
+luego se entra a minio y se crea el bucket **mlflows3**
+
+regresamos a airflow y damos correr a DAG_p2 
+
+
+from datetime import datetime
+import requests
+import json
+import os
+API_URL = "http://host.docker.internal:80/data?group_number=6"
+response = requests.get(API_URL)
+print(response.status_code)
+
+docker exec -it mysql-data-store bash
+mysql -u root -proot
+use datadb;
+select count(1) from covertype_data;
 
 
 

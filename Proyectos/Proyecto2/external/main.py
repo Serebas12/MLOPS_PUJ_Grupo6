@@ -73,7 +73,7 @@ async def read_data(group_number: int):
     last_update_time = timestamps[str(group_number)][0]
     
     # Verificar si han pasado más de 5 minutos desde la última actualización
-    if current_time - last_update_time > MIN_UPDATE_TIME: 
+    if current_time - last_update_time > MIN_UPDATE_TIME - 1: 
         # Actualizar el timestamp y obtener nuevos datos
         timestamps[str(group_number)][0] = current_time
         timestamps[str(group_number)][1] += 2 if timestamps[str(group_number)][1] == -1 else 1

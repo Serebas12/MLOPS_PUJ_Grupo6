@@ -351,6 +351,42 @@ services:
       - minio
     restart: always
 
+  mysql-data-store:
+    image: mysql:8.0
+    container_name: mysql-data-store
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: datadb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: supersecret
+    ports:
+      - "3307:3306"  # Nota: puerto diferente si ya se usa 3307 con mlflow
+    volumes:
+      - mysql_data_store:/var/lib/mysql
+    restart: always
+
+  #jupyterlab:
+  #  build:
+  #    context: ./jupyterlab
+  #    dockerfile: Dockerfile
+  #    args:
+  #      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+  #      AWS_ACCESS_KEY_ID: admin
+  #      AWS_SECRET_ACCESS_KEY: supersecret
+  #  container_name: jupyterlab
+  #  ports:
+  #    - "8888:8888"
+  #  volumes:
+  #    - ./jupyterlab:/work/notebooks
+  #  environment:
+  #    - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+  #    - AWS_ACCESS_KEY_ID=admin
+  #    - AWS_SECRET_ACCESS_KEY=supersecret
+  #  depends_on:
+  #    - airflow-webserver
+  #    - mlflow
+  #    - minio
+
   api:
     build: ./app
     container_name: api_models
@@ -362,3 +398,13 @@ volumes:
   postgres-db-volume:
   mysql_data:
   minio_data:
+  mysql_data_store:
+
+networks:
+  backend:
+    driver: bridge
+
+  hostnet:
+    external: true
+    name: host 
+
