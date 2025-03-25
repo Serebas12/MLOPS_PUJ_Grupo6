@@ -27,7 +27,7 @@ async def list_models():
 
 # Configurar la URL del servidor de MLflow (ajusta según tu caso)
     try:
-        mlflow.set_tracking_uri("http://0.0.0.0:5000") 
+        mlflow.set_tracking_uri("http://mlflow:5000") 
 
         # Obtener la lista de modelos registrados en MLflow
         models = mlflow.search_registered_models()
@@ -43,20 +43,25 @@ async def list_models():
 
 
 #Datos requeridos de la solicitud
-class PenguinsInput(BaseModel):
-    island: str	
-    culmen_length_mm: float	
-    culmen_depth_mm: float
-    flipper_length_mm: float	
-    body_mass_g: float	
-    sex: str
-    model: str	
-
+class CoverTypeInput(BaseModel):
+    Elevation: float
+    Aspect: float
+    Slope: float
+    Horizontal_Distance_To_Hydrology: float
+    Vertical_Distance_To_Hydrology: float
+    Horizontal_Distance_To_Roadways: float
+    Hillshade_9am: float
+    Hillshade_Noon: float
+    Hillshade_3pm: float
+    Horizontal_Distance_To_Fire_Points: float
+    Wilderness_Area: str
+    Soil_Type: str
+    model: str
 
 #Se genera el decorador por modelo
 @app.post("/predict")
 
-async def predict(input_data: PenguinsInput):
+async def predict(input_data: CoverTypeInput):
 
     """
     Puede realizar la predicción de la especie de un pingüino, seleccionando uno de los modelos pre entrenados.
@@ -77,20 +82,26 @@ async def predict(input_data: PenguinsInput):
     try:
         # Tratamiento de información
         data = pd.DataFrame([{
-            "island": input_data.island,
-            "sex": input_data.sex,
-            "culmen_length_mm": input_data.culmen_length_mm,
-            "culmen_depth_mm": input_data.culmen_depth_mm,
-            "flipper_length_mm": input_data.flipper_length_mm,
-            "body_mass_g": input_data.body_mass_g
+            'Elevation': input_data.Elevation, 
+            'Aspect': input_data.Aspect, 
+            'Slope': input_data.Slope, 
+            'Horizontal_Distance_To_Hydrology': input_data.Horizontal_Distance_To_Hydrology,
+            'Vertical_Distance_To_Hydrology': input_data.Vertical_Distance_To_Hydrology, 
+            'Horizontal_Distance_To_Roadways': input_data.Horizontal_Distance_To_Roadways,
+            'Hillshade_9am': input_data.Hillshade_9am, 
+            'Hillshade_Noon': input_data.Hillshade_Noon, 
+            'Hillshade_3pm': input_data.Hillshade_3pm,
+            'Horizontal_Distance_To_Fire_Points': input_data.Horizontal_Distance_To_Fire_Points, 
+            'Wilderness_Area': input_data.Wilderness_Area, 
+            'Soil_Type': input_data.Soil_Type
         }])
 
 
-        os.environ['MLFLOW_S3_ENDPOINT_URL'] = "http://0.0.0.0:9000"
+        os.environ['MLFLOW_S3_ENDPOINT_URL'] = "http://minio:9000"
         os.environ['AWS_ACCESS_KEY_ID'] = 'admin'
         os.environ['AWS_SECRET_ACCESS_KEY'] = 'supersecret'
 
-        mlflow.set_tracking_uri("http://0.0.0.0:5000")
+        mlflow.set_tracking_uri("http://mlflow:5000")
 
         model_name = input_data.model
         model_production_uri = "models:/{model_name}/production".format(model_name=model_name)

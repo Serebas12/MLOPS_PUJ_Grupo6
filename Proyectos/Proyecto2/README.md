@@ -1,7 +1,8 @@
 
 la fuente de datos desde la local
-docker compose -f docker-compose-external.yaml up --build -d
-docker compose -f docker-compose-external.yaml down -v --rmi all
+sudo docker compose -f docker-compose-external.yaml up --build -d
+sudo docker compose -f docker-compose-external.yaml down -v --rmi all
+
 revisar que existe expuesto el servicio en el localhost
 curl http://localhost/
 revisión de la recolección de los datos
@@ -13,13 +14,11 @@ el propio código avisa cuando ya se encuentra todo el conjunto de datos consumi
 
 primer servicio desplegado por el docker compose es airflow, que es el de codificación más extensa 
 despliegue completo 
-sudo 
-docker compose -f docker-compose-p2.yaml up airflow-init 
-sudo 
-docker compose -f docker-compose-p2.yaml up --build -d 
+sudo docker compose -f docker-compose-p2.yaml up airflow-init 
+sudo docker compose -f docker-compose-p2.yaml up --build -d 
+
 destrucción del proyecto para actualizarlo
-sudo 
-docker compose -f docker-compose-p2.yaml down -v --rmi all 
+sudo docker compose -f docker-compose-p2.yaml down -v --rmi all 
 
 entrar a airflow 
 http://localhost:8080
@@ -67,6 +66,9 @@ Para corroborar la correcta conexión a api toca tener ya resultados por lo tant
 (por los modelos publicados, es mejor ya hacerlo con un modelo)
 
 
+## Ejecución del streamlit
+
+streamlit run streamlit_app.py --server.port 8503
 
 
 

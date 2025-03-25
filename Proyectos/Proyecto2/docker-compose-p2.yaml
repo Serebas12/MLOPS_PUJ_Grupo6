@@ -351,12 +351,13 @@ services:
       - minio
     restart: always
 
-  api:
-    build: ./app
+  fast_api:
+    build:
+      context: ./app
+      dockerfile: dockerfile
     container_name: api_models
     ports:
       - "8989:8989"
-
 
 volumes:
   postgres-db-volume:
