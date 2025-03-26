@@ -6,3 +6,4 @@ pandas==2.2.2
 mlflow==2.3.0
 pymysql 
 boto3==1.26.121
+psutil==5.9.5

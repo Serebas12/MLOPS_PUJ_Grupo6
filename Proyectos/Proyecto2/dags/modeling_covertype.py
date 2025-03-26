@@ -123,9 +123,9 @@ def train_model():
     ])
 
     param_grid = {
-        "classifier__n_estimators": [10, 50],
-        "classifier__max_depth": [5, 8],
-        "classifier__min_samples_split": [2, 5]
+        "classifier__n_estimators": [10, 50, 80],
+        "classifier__max_depth": [5, 8, 12],
+        "classifier__min_samples_split": [2, 5, 10]
     }
 
     grid_search = GridSearchCV(
@@ -150,30 +150,10 @@ def train_model():
     mlflow.set_experiment("covertype_training_experiment")
 
     # Entrenamiento con tracking de MLflow
-    with mlflow.start_run(run_name="rf_gridsearch_pipeline") as run:
+    mlflow.sklearn.autolog(log_model_signatures=True, log_input_examples=True, registered_model_name="modelo_covertype_vf", max_tuning_runs=27)
+
+    with mlflow.start_run(run_name="autolog_pipe_model_reg") as run:
         grid_search.fit(X_train, y_train)
-        y_pred = grid_search.predict(X_test)
-
-        acc = accuracy_score(y_test, y_pred)
-        prec = precision_score(y_test, y_pred, average="weighted", zero_division=0)
-        rec = recall_score(y_test, y_pred, average="weighted", zero_division=0)
-        f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
-
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("precision", prec)
-        mlflow.log_metric("recall", rec)
-        mlflow.log_metric("f1_score", f1)
-
-        # Guardar el modelo
-        os.makedirs("/opt/airflow/artifacts", exist_ok=True)
-        model_path = "/opt/airflow/artifacts/modelo_entrenado.pkl"
-        with open(model_path, "wb") as f:
-            pickle.dump(grid_search.best_estimator_, f)
-
-        # Subir a MLflow como artifact
-        mlflow.log_artifact(model_path, artifact_path="model")
-
-
 
 with DAG(
     dag_id="DAG_p2",

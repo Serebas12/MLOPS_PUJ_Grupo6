@@ -82,16 +82,16 @@ async def predict(input_data: CoverTypeInput):
     try:
         # Tratamiento de información
         data = pd.DataFrame([{
-            'Elevation': input_data.Elevation, 
-            'Aspect': input_data.Aspect, 
-            'Slope': input_data.Slope, 
-            'Horizontal_Distance_To_Hydrology': input_data.Horizontal_Distance_To_Hydrology,
-            'Vertical_Distance_To_Hydrology': input_data.Vertical_Distance_To_Hydrology, 
-            'Horizontal_Distance_To_Roadways': input_data.Horizontal_Distance_To_Roadways,
-            'Hillshade_9am': input_data.Hillshade_9am, 
-            'Hillshade_Noon': input_data.Hillshade_Noon, 
-            'Hillshade_3pm': input_data.Hillshade_3pm,
-            'Horizontal_Distance_To_Fire_Points': input_data.Horizontal_Distance_To_Fire_Points, 
+            'Elevation': int(input_data.Elevation), 
+            'Aspect': int(input_data.Aspect), 
+            'Slope': int(input_data.Slope), 
+            'Horizontal_Distance_To_Hydrology': int(input_data.Horizontal_Distance_To_Hydrology),
+            'Vertical_Distance_To_Hydrology': int(input_data.Vertical_Distance_To_Hydrology), 
+            'Horizontal_Distance_To_Roadways': int(input_data.Horizontal_Distance_To_Roadways),
+            'Hillshade_9am': int(input_data.Hillshade_9am), 
+            'Hillshade_Noon': int(input_data.Hillshade_Noon), 
+            'Hillshade_3pm': int(input_data.Hillshade_3pm),
+            'Horizontal_Distance_To_Fire_Points': int(input_data.Horizontal_Distance_To_Fire_Points), 
             'Wilderness_Area': input_data.Wilderness_Area, 
             'Soil_Type': input_data.Soil_Type
         }])
@@ -112,6 +112,8 @@ async def predict(input_data: CoverTypeInput):
         # Prediccion del modelo
         predict = loaded_model.predict(data)
         resultado = predict[0]
+
+        resultado = int(resultado)
 
         return {"prediction": resultado}
     except Exception as e:
