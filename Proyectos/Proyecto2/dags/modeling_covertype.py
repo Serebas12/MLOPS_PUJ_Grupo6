@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np # se carga pensandolo como dependencia
 import pickle
 import mlflow
+from mlflow.tracking import MlflowClient
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, MinMaxScaler
 from sklearn.pipeline import Pipeline
@@ -31,7 +32,9 @@ default_args = {
 
 # URL del API que quieres consumir
 #API_URL = "http://10.43.101.108:80/data?group_number=6"
+#API_URL_RESET = "http://10.43.101.108:80/restart_data_generation?group_number=6"
 API_URL = "http://host.docker.internal:80/data?group_number=6"
+API_URL_RESET = "http://host.docker.internal:80/restart_data_generation?group_number=6"
 # Tiempo de espera para la lectura de datos
 MIN_UPDATE_TIME = 60 
 
@@ -65,11 +68,17 @@ def create_table():
 
 
 def load_api_data(**kwargs):
+    mysql_hook = MySqlHook(mysql_conn_id = 'mysql_default')
+    clear_table_sql = "TRUNCATE TABLE covertype_data;"
+    mysql_hook.run(clear_table_sql)
+
+    response = requests.get(API_URL_RESET)
+    time.sleep(10)
+    
     for i in range(10):
         response = requests.get(API_URL)
         if response.status_code == 200:
             data = response.json()['data']
-            mysql_hook = MySqlHook(mysql_conn_id = 'mysql_default')
             mysql_hook.insert_rows(
                 table = 'covertype_data',
                 rows = data,
@@ -150,15 +159,41 @@ def train_model():
     mlflow.set_experiment("covertype_training_experiment")
 
     # Entrenamiento con tracking de MLflow
-    mlflow.sklearn.autolog(log_model_signatures=True, log_input_examples=True, registered_model_name="modelo_covertype_vf", max_tuning_runs=27)
+    mlflow.sklearn.autolog(
+        log_model_signatures=True, log_input_examples=True, registered_model_name="modelo_covertype_vf", max_tuning_runs=27
+    )
 
     with mlflow.start_run(run_name="autolog_pipe_model_reg") as run:
         grid_search.fit(X_train, y_train)
+        # Obtener run_id activo
+        run_id = run.info.run_id
+        model_name = "modelo_covertype_vf"
+        client = MlflowClient()
+    
+        # Obtener todas las versiones y filtrar por run_id
+        versions = client.search_model_versions(f"name='{model_name}'")
+        model_version = None
+        for v in versions:
+            if v.run_id == run_id:
+                model_version = v.version
+                break
+            
+        if model_version is None:
+            raise Exception("No se encontró ninguna versión del modelo registrada con ese run_id.")
+        # Promover a Production
+        client.transition_model_version_stage(
+            name=model_name,
+            version=model_version,
+            stage="Production",
+            archive_existing_versions=True
+        )
+        print(f" Modelo '{model_name}' versión {model_version} promovido a 'Production'.")
+
 
 with DAG(
     dag_id="DAG_p2",
     default_args = default_args,
-    schedule_interval = "@once",  # 
+    schedule_interval = "@daily",  # 
     catchup = False,
     description = "DAG de consumo de datos por API y entrenamiento de modelo",
 ) as dag:

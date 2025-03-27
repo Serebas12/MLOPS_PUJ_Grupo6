@@ -388,9 +388,7 @@ services:
   #    - minio
 
   fast_api:
-    build:
-      context: ./app
-      dockerfile: dockerfile
+    build: ./app
     container_name: api_models
     ports:
       - "8989:8989"

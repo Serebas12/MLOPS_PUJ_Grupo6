@@ -9,8 +9,8 @@ import boto3
 
 #Inicia la aplicación
 app = FastAPI(
-    title="API de Predicción de especie de Pingüinos",
-    description="Esta API tiene 2 modelos que permiten realizar la inferencia de la especie de Pingüinos entre Adelie, Chinstrap y Gentoo",
+    title="Covertype Predictor API – ML Model Serving",
+    description="Realizar predicciones usando el modelo más reciente en stage Production",
     version="1.0.0"
 )
 
@@ -22,7 +22,7 @@ MODEL_DIR = "/app/models/"
 
 async def list_models():
     """
-    Lista todos los archivos .pkl en el directorio de trabajo.
+    Rastrea el modelo más reciente para su utilización.
     """
 
 # Configurar la URL del servidor de MLflow (ajusta según tu caso)
@@ -64,17 +64,23 @@ class CoverTypeInput(BaseModel):
 async def predict(input_data: CoverTypeInput):
 
     """
-    Puede realizar la predicción de la especie de un pingüino, seleccionando uno de los modelos pre entrenados.
-    
-    - **island**: Isla a la que pertenece el pingüino. Valores validos Biscoe, Dream y Torgersen.
-    - **sex**: Sexo del pingüinos. Valores validos MALE, FEMALE.
-    - **culmen_length_mm**: Longitud del culmen en mm.
-    - **culmen_depth_mm**: Profundidad del culmen en mm.
-    - **flipper_length_mm**: Profundidad de la aleta en mm.
-    - **body_mass_g**: Masa corporal en mm.
-    - **model**: Modelo que se desea utilizar. 
+    Puede realizar la predicción del tipo de cobertura forestal (Cover_Type) utilizando uno de los modelos preentrenados registrados en MLflow.
 
-    Devuelve un JSON con la predicción.
+    -   Elevation: Elevación del terreno en metros.
+    -   Aspect: Orientación del terreno en grados (0 a 360).
+    -   Slope: Inclinación del terreno en grados.
+    -   Horizontal_Distance_To_Hydrology: Distancia horizontal a cuerpos de agua en metros.
+    -   Vertical_Distance_To_Hydrology: Distancia vertical a cuerpos de agua en metros.
+    -   Horizontal_Distance_To_Roadways: Distancia horizontal a carreteras en metros.
+    -   Hillshade_9am: Nivel de sombra proyectada a las 9:00 AM (0 a 255).
+    -   Hillshade_Noon: Nivel de sombra proyectada al mediodía (0 a 255).
+    -   Hillshade_3pm: Nivel de sombra proyectada a las 3:00 PM (0 a 255).
+    -   Horizontal_Distance_To_Fire_Points: Distancia horizontal a zonas de fuego controlado en metros.
+    -   Wilderness_Area: Área silvestre a la que pertenece. Valores válidos: Rawah, Neota, Comanche Peak, Cache la Poudre.  
+    -   Soil_Type: Tipo de suelo categorizado. Valores válidos: Soil_1 a Soil_40.
+    -   model: Modelo que se desea utilizar para la predicción. 
+
+    Devuelve un JSON con la clase de cobertura forestal estimada (Cover_Type), codificada del 1 al 7 según la clasificación del Servicio Forestal de EE.UU.
     """
 
     ### Predicción modelo 1
