@@ -36,7 +36,7 @@ default_args = {
 API_URL = "http://host.docker.internal:80/data?group_number=6"
 API_URL_RESET = "http://host.docker.internal:80/restart_data_generation?group_number=6"
 # Tiempo de espera para la lectura de datos
-MIN_UPDATE_TIME = 60 
+MIN_UPDATE_TIME = 300
 
 # Paso 1: Creación de la tabla
 def create_table():
