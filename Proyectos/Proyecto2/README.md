@@ -265,7 +265,7 @@ Esta API actúa como puente entre el modelo publicado y los servicios o usuarios
 
 Como complemento al entorno desarrollado, se implementó una interfaz gráfica de usuario (UI) utilizando Streamlit, con el objetivo de permitir que un usuario final pueda interactuar fácilmente con el modelo entrenado y realizar predicciones de forma manual e intuitiva.
 
-Para levantar esta interfaz, se ejecuta el siguiente comando en la terminal:
+Primero, asegúrese de que el entorno de desarrollo cuente con la biblioteca Streamlit instalada. Luego, para iniciar la interfaz, ejecute el siguiente comando en la terminal:
 
 ```bash
 streamlit run streamlit_app.py --server.port 8503
@@ -276,9 +276,33 @@ Una vez iniciado el servicio, la aplicación estará disponible en el navegador 
 http://localhost:8503
 ```
 
-Desde esta interfaz, el usuario puede ingresar manualmente los valores de entrada requeridos por el modelo y obtener la predicción en tiempo real. Por defecto, el comando abre automáticamente el navegador al iniciar el servidor y permanece activo mientras se mantenga la terminal abierta.
+Desde esta interfaz, el usuario puede ingresar manualmente los valores de entrada requeridos por el modelo y obtener la predicción en tiempo real. Por defecto, el comando abre automáticamente el navegador al iniciar el servidor y permanece activo mientras se mantenga la terminal abierta. La interfaz de streamlit se verá de la siguiente forma: 
 
-Aunque en este experimento la aplicación fue ejecutada localmente, este servicio puede ser fácilmente dockerizado e integrado a futuros entornos contenedorizados, permitiendo su despliegue como parte de flujos de trabajo completos en producción.
+<div align="center">
+  <img src="images/streamlit2.png" alt="streamlit" width="700"/>
+</div>
+
+Streamlit está completamente integrado con las APIs proporcionadas previamente mediante FastAPI. Los detalles de esta integración se pueden consultar en el archivo [`streamlit_app.py`](./streamlit_app.py) presente en este repositorio. En la sección **Modelos**, la aplicación invoca automáticamente el método `listar_modelos`, el cual muestra el listado completo de los modelos desplegados en MLflow y disponibles para su uso.  Adicionalmente, la interfaz permite ingresar los valores correspondientes a cada variable para realizar la predicción; por defecto, las variables numéricas se inicializan en `0` y las categóricas se dejan en blanco.
+
+Por último, se confirma que se implementaron validaciones en algunos de los campos para garantizar la integridad de los datos ingresados. En caso de que los valores no cumplan con las especificaciones definidas para cada variable, se mostrará un mensaje de error similar al siguiente:
+
+<div align="center">
+  <img src="images/streamlit3.png" alt="streamlit" width="700"/>
+</div>
+
+Se implementaron las siguientes validaciones:
+
+1. **Valores no negativos:** Ninguna variable puede tener un valor numérico negativo.
+2. **Variables categóricas obligatorias:** Los campos categóricos no pueden estar vacíos.
+3. **Rangos válidos:** Según la naturaleza de cada variable y la documentación del conjunto de datos, se definieron rangos válidos que limitan los valores aceptados.
+
+Si alguno de los datos ingresados no cumple con estas condiciones, se mostrará un mensaje de error claro y descriptivo que guía al usuario en la corrección del dato.
+
+Además, en caso de que el API llegue a fallar por cualquier motivo, la interfaz de Streamlit está configurada para capturar y mostrar el error correspondiente, permitiendo que el desarrollador pueda identificar rápidamente la causa del problema y tomar acciones correctivas.
+
+Aunque en este experimento la aplicación fue ejecutada localmente, el servicio puede ser fácilmente **dockerizado** e integrado en futuros entornos contenedorizados, permitiendo su despliegue como parte de flujos de trabajo completos en ambientes de producción.
+
+Adicionalmente, es posible integrarlo con herramientas como **Ngrok**, lo cual facilita el acceso a la aplicación desde diferentes equipos mediante la publicación de una **URL pública**, útil especialmente durante fases de desarrollo colaborativo, pruebas o demostraciones remotas.
 
 ---
 
