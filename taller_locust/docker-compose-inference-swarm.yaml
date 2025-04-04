@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  inferencia:
+    image: blutenherz/repo_inference_p2:inference_p2
+    ports:
+      - "8000:8989"  # Se expone el puerto 8989 interno al 8000 en el host
+    deploy:
+      mode: replicated
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1024M"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+    restart: always
+    networks:
+      internal_net:
+        aliases:
+          - inference  
+
+networks:
+  internal_net:
+    driver: overlay
+    external: true

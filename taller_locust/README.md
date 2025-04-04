@@ -91,14 +91,69 @@ Con lo anterior, obtenemos los siguientes resultados
 
 lo que implica que tenemos bastante demora en respuesta, así que lanzamos la api sin restricciones de recursos y al obtener los mismos resultados concluimos que la función predict es la que se tarda más de lo esperado, debido que dentro de la función predict estamos cargando el modelo desde el bucket de minio, además de revisar el registro en mlflow, lo que por detrás consume tiempo adicional y posibilita esta suma en los tiempos de respuesta. Es un hallazgo que debemos mejorar para un próximo desarrollo, sacando el llamado del modelo por fuera del atributo post para que el modelo se mantenga en memoria mientras se usa en la función predict.
 
-con lo anterior, además de la prueba con 1024M y 1 cpu tenemos el mismo resultado probaremos con réplicas, lo cual necesitamos:
+con lo anterior, además de la prueba con 1024M y 1 cpu tenemos el mismo resultado probaremos con réplicas, lo cual haremos lo siguiente:
+
+recreación de los docker compose para usarlos con swarm
+
+los archivos son 
+docker-compose-inference-swarm.yaml
+
+
+Creamos el network internal_net que permita a locust comunicarse con las replicas de inferencia
+```bash
+docker network create --driver overlay --attachable internal_net
+```
+```bash
+docker network rm internal_net
+```
 
 inicial docker swarm para eso tenemos el comando 
 ```bash
 docker swarm init
 ```
 
-destruimos el docker compose con el que lanzamos la inferencia y lo lanzamos con docker swarm
+bajamos los dos docker compose por completo, para levantar las nuevas versiones
+
+levantamos docker compose de inferencias
 ```bash
-docker stack deploy -c docker-compose-inference.yaml p2stack
+docker stack deploy -c docker-compose-inference-swarm.yaml p2_inference
 ```
+```bash
+docker stack rm p2_inference
+```
+
+Verificamos el levante 
+```bash
+docker service ls
+docker service ps p2_inference_inferencia
+```
+
+levantamos locust
+```bash
+docker compose -f docker-compose-locust.yaml up --build -d
+docker compose -f docker-compose-locust-mod.yaml up --build -d
+```
+
+conectamos las replicas swarm a la red del proyecto 2
+encontramos los id 
+```bash
+docker ps --filter "name=p2_inference_inferencia" -q
+```
+conectamos one by one
+```bash
+docker network connect proyecto2_default dd8e01147ee6
+docker network connect proyecto2_default f527cb015b85
+docker network connect proyecto2_default 4b0a409e1703
+```
+(se puede optimizar por script)
+
+conectamos locust al network para usar las replicas de inferencia
+```bash
+docker network connect internal_net locust
+```
+
+
+
+docker network inspect internal_net
+
+p2_inference_inferencia
