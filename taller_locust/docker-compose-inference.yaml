@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  inferencia:
+    image: blutenherz/repo_inference_p2:inference_p2
+    container_name: inference
+    ports:
+      - "8000:8989"  # Mapeamos en otro puerto debido que ya tenemos levantado el p2 en este puerto
+    deploy:
+      mode: replicated
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1"    
+          memory: "1024M"  
+        reservations:
+          cpus: "0.25"
+          memory: "512M"
+    restart: always
