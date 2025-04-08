@@ -138,7 +138,7 @@ Dado que aumentar los recursos no resolvi√≥ el problema, decidimos probar con m√
 -   docker-compose-inference-swarm.yaml
 -   docker-compose-locust-mod.yaml
 
-Primero preparamos el entorno dedesarrollo, para ello primero creamos el network overlay para conectar las replicas de la api de inferencia con el siguiente comando:
+Primero preparamos el entorno de desarrollo, para ello primero creamos el network overlay para conectar las replicas de la api de inferencia con el siguiente comando:
 ```bash
 sudo docker network create --driver overlay --attachable internal_net
 ```
