@@ -204,7 +204,18 @@ sudo docker network inspect internal_net
 
 Durante las pruebas, experimentamos una reducción progresiva en los recursos asignados a cada réplica del servicio de inferencia, observando que el rendimiento del sistema se mantenía estable a pesar de estas limitaciones. Esto sugiere que la arquitectura basada en réplicas tolera una disminución de recursos sin afectar negativamente la capacidad de respuesta. No obstante, también es importante considerar que nuestra API aún no está optimizada para entornos de producción, por lo que los resultados podrían variar al compararse con una implementación más eficiente y estructurada.
 
-Finalmente, la estrategia de escalado horizontal mediante réplicas demostró una mejora significativa en el rendimiento del sistema. Si bien la restricción individual de recursos no mostró beneficios evidentes, al combinar réplicas múltiples con asignaciones más modestas, se logra un equilibrio entre rendimiento y eficiencia en el uso de recursos. Esta combinación permite mejorar la capacidad de respuesta del sistema sin incurrir en un sobreconsumo innecesario, lo cual representa una estrategia prometedora para despliegues en ambientes productivos o con recursos limitados.
+Finalmente, la estrategia de escalado horizontal mediante réplicas demostró una mejora significativa en el rendimiento del sistema. Si bien la restricción individual de recursos no mostró beneficios evidentes, al combinar múltiples réplicas con asignaciones más modestas, se logra un equilibrio entre rendimiento y eficiencia en el uso de recursos. Esta combinación permite mejorar la capacidad de respuesta del sistema sin incurrir en un sobreconsumo innecesario, lo cual representa una estrategia prometedora para despliegues en ambientes productivos o con recursos limitados.
+
+Esto se evidenció al comparar la ejecución de las pruebas sin réplicas y con réplicas. En el escenario sin réplicas, se observó una tasa de fallos del 88 % (entendida como la proporción de solicitudes que no lograron satisfacer los requisitos esperados), lo cual representa un valor considerablemente alto. En contraste, al ejecutar las pruebas con réplicas, la tasa de fallos se redujo al 68 %. Adicionalmente, se observaron mejoras en el tiempo de respuesta de las solicitudes: el promedio se redujo de 118 segundos a 98 segundos, mientras que la mediana y el percentil 95 se mantuvieron estables. Sin embargo, en el percentil 99 se evidenció un aumento significativo en la prueba con réplicas, lo cual puede estar relacionado con la distribución de carga en situaciones extremas.
+
+En cuanto a la métrica de Requests per Second (RPS), se evidenció una disminución de 19 a 15. Esta reducción puede interpretarse como una limitación de la máquina, posiblemente activada como mecanismo para estabilizar la respuesta de la API bajo carga. Asimismo, el tamaño promedio de las respuestas (Average Size) aumentó de 1.86 bytes a 5.03 bytes, lo que sugiere una mayor capacidad del sistema para procesar y retornar datos útiles por solicitud, implicando una mejor cobertura de los requerimientos por parte de la API bajo condiciones de escalado.
 
 ![Resultados Replicas](images/replicas2.png)
+
+
+**Nota:** Decidimos continuar con el proceso de aumento de réplicas en un computador con 6 núcleos, lo cual obtenemos mejorías significativas en el rendimiento del levantamiento de la API por medio de Docker Swarm. Acá evidenciamos que para lograr el objetivo lo podemos hacer por medio del aumento de réplicas que usen de manera eficiente los recursos del equipo, además de tener la necesidad de optimizar la API desarrollada para el consumo del modelo.
+
+![Último Ensayo](images/Prueba6.png)
+
+
 

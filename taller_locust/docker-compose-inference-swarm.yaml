@@ -7,13 +7,13 @@ services:
       - "8000:8989"  # Se expone el puerto 8989 interno al 8000 en el host
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 6
       resources:
         limits:
-          cpus: "0.8"
-          memory: "512M"
+          cpus: "0.5"
+          memory: "256M"
         reservations:
-          cpus: "0.25"
+          cpus: "0.15"
           memory: "128M"
     restart: always
     networks:
