@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mlflow-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mlflow
+      MYSQL_USER: mlflow
+      MYSQL_PASSWORD: mlflow
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+
+  minio:
+    image: minio/minio
+    container_name: mlflow-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: supersecret
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Consola web
+    volumes:
+      - minio_data:/data
+    restart: always
+
+  mlflow:
+    build: ./mlflow
+    image: ghcr.io/mlflow/mlflow:v2.10.0
+    container_name: mlflow
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: supersecret
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri mysql+pymysql://mlflow:mlflow@mysql:3306/mlflow
+      --default-artifact-root s3://mlflows3/artifacts
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mysql
+      - minio
+    restart: always
+
+  mysql-data-store:
+    image: mysql:8.0
+    container_name: mysql-data-store
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: datadb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: supersecret
+    ports:
+      - "3307:3306"  # Nota: puerto diferente si ya se usa 3307 con mlflow
+    volumes:
+      - mysql_data_store:/var/lib/mysql
+    restart: always
+
+  fast_api:
+    build: ./app
+    container_name: api_models
+    ports:
+      - "8989:8989"
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+volumes:
+  postgres-db-volume:
+  mysql_data:
+  minio_data:
+  mysql_data_store:
+
+networks:
+  backend:
+    driver: bridge
+
+  hostnet:
+    external: true
+    name: host 
+
+
