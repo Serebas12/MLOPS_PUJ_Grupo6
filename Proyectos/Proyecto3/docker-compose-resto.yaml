@@ -84,6 +84,14 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
+  jupyter:
+    build: ./jupyter
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./jupyter:/app
+
 volumes:
   postgres-db-volume:
   mysql_data:
