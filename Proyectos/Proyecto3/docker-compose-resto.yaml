@@ -50,18 +50,17 @@ services:
       - minio
     restart: always
 
-  mysql-data-store:
-    image: mysql:8.0
-    container_name: mysql-data-store
+  postgres-data-store:
+    image: postgres:14
+    container_name: postgres-data-store
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: datadb
-      MYSQL_USER: admin
-      MYSQL_PASSWORD: supersecret
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: datadb
     ports:
-      - "3307:3306"  # Nota: puerto diferente si ya se usa 3307 con mlflow
+      - "5432:5432"   # PostgreSQL usa 5432
     volumes:
-      - mysql_data_store:/var/lib/mysql
+      - postgres_data_store:/var/lib/postgresql/data
     restart: always
 
   fast_api:
@@ -97,6 +96,8 @@ volumes:
   mysql_data:
   minio_data:
   mysql_data_store:
+  postgres_data_store:  # <-- agrega esto
+
 
 networks:
   backend:

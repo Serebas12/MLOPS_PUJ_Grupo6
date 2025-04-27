@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 import pickle
 import numpy as np
@@ -6,6 +6,11 @@ import pandas as pd
 import os
 import mlflow
 import boto3
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+import time
+import psycopg2
+import pytz
+from datetime import datetime
 
 #Inicia la aplicación
 app = FastAPI(
@@ -13,6 +18,9 @@ app = FastAPI(
     description="Realizar predicciones usando el modelo más reciente en stage Production",
     version="1.0.0"
 )
+
+# Métricas Prometheus
+REQUEST_COUNT = Counter('predict_requests_total', 'Total de peticiones de predicción')
 
 #Se genera decorador para listar los modelos 
 
@@ -73,6 +81,8 @@ async def predict(input_data: ModelInput):
 
     ### Predicción modelo 1
 
+    REQUEST_COUNT.inc()
+
     try:
         # Tratamiento de información
         data = pd.DataFrame([{
@@ -101,8 +111,55 @@ async def predict(input_data: ModelInput):
         resultado = predict[0]
 
 
+        # --- Guardar en la base de datos postgres ---
+        try:
+            # Conexión a la base de datos PostgreSQL
+            connection = psycopg2.connect(
+                host='postgres-data-store',
+                database='datadb',
+                user='admin',
+                password='supersecret'
+            )
+
+            cursor = connection.cursor()
+
+            insert_query = """
+                INSERT INTO resultados_modelo (island, culmen_length_mm, culmen_depth_mm, flipper_length_mm, body_mass_g, sex, model, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            """
+
+            # Obtener la hora actual en zona horaria Colombia
+            colombia_timezone = pytz.timezone("America/Bogota")
+            created_at_colombia = datetime.now(colombia_timezone)
+            created_at_utc = created_at_colombia.astimezone(pytz.utc)
+
+
+            values = (
+                input_data.island,
+                input_data.culmen_length_mm,
+                input_data.culmen_depth_mm,
+                input_data.flipper_length_mm,
+                input_data.body_mass_g,
+                input_data.sex,
+                input_data.model,
+                created_at_utc
+            )
+
+            cursor.execute(insert_query, values)
+            connection.commit()
+
+        except Exception as e:
+            print(f"Error al guardar en la base de datos: {e}")
+
+        finally:
+            if connection:
+                cursor.close()
+                connection.close()
+
         return {"prediction": resultado}
     except Exception as e:
         return {"prediction": f"Error al cargar el modelo: {e}"}
 
-    
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)    
