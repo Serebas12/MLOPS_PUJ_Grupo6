@@ -11,6 +11,8 @@ services:
       MYSQL_PASSWORD: mlflow
     ports:
       - "3306:3306"
+    labels:
+      kompose.service.type: nodeport
     volumes:
       - mysql_data:/var/lib/mysql
     restart: always
@@ -25,6 +27,8 @@ services:
     ports:
       - "9000:9000"   # API
       - "9001:9001"   # Consola web
+    labels:
+      kompose.service.type: nodeport
     volumes:
       - minio_data:/data
     restart: always
@@ -45,6 +49,8 @@ services:
       --default-artifact-root s3://mlflows3/artifacts
     ports:
       - "5000:5000"
+    labels:
+      kompose.service.type: nodeport
     depends_on:
       - mysql
       - minio
@@ -58,21 +64,26 @@ services:
       POSTGRES_PASSWORD: supersecret
       POSTGRES_DB: datadb
     ports:
-      - "5432:5432"   # PostgreSQL usa 5432
+      - "5432:5432"  
+    labels:
+      kompose.service.type: nodeport
     volumes:
       - postgres_data_store:/var/lib/postgresql/data
     restart: always
 
-  fast_api:
+  fast-api:
     build: ./app
     container_name: api_models
     ports:
       - "8989:8989"
-
+    labels:
+      kompose.service.type: nodeport
   prometheus:
     image: prom/prometheus
     ports:
       - "9090:9090"
+    labels:
+      kompose.service.type: nodeport
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
 
@@ -80,6 +91,8 @@ services:
     image: grafana/grafana
     ports:
       - "3000:3000"
+    labels:
+      kompose.service.type: nodeport
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
@@ -88,6 +101,8 @@ services:
     container_name: jupyter
     ports:
       - "8888:8888"
+    labels:
+      kompose.service.type: nodeport
     volumes:
       - ./jupyter:/app
 
@@ -96,7 +111,7 @@ volumes:
   mysql_data:
   minio_data:
   mysql_data_store:
-  postgres_data_store:  # <-- agrega esto
+  postgres_data_store:  
 
 
 networks:
