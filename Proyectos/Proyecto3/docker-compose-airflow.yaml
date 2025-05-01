@@ -55,8 +55,12 @@ x-airflow-common:
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    #AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@mlops-postgres/airflow
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     # For backward compatibility, with Airflow <2.3
+    #AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@mlops-postgres/airflow
+    #AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@mlops-postgres/airflow
+    #AIRFLOW_CONN_POSTGRES_DEFAULT: postgres://airflow:airflow@mlops-postgres:5432/airflow
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     AIRFLOW_CONN_POSTGRES_DEFAULT: postgres://airflow:airflow@postgres:5432/airflow
@@ -211,6 +215,8 @@ services:
     command:
       - -c
       - |
+        
+        airflow db upgrade
         function ver() {
           printf "%04d%04d%04d%04d" $${1//./ }
         }
@@ -279,6 +285,8 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
+    #networks:
+    #  - airflow_backend
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
 
@@ -318,8 +326,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
-    #networks:
-    #  - airflow_backend
+    networks:
+      - airflow_backend
         
 ##  Todo el código anterior es para poder levantar airflow 
 
@@ -331,3 +339,4 @@ networks:
   airflow_backend:
     external: true
     name: airflow_backend
+

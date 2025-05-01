@@ -74,7 +74,23 @@ SELECT COUNT(*) FROM raw_data.diabetes_clean;
 DROP TABLE raw_data.diabetes_clean;
 
 
+
 Luego entramos a minio, y acá creamos el bucket `mlflows3` para que se guarden los objetos del proceso de entrenamiento de modelos del experimento
+
+docker exec -it mlflow bash
+touch test_s3.py
+echo "import os, mlflow
+os.environ['AWS_ACCESS_KEY_ID'] = 'admin'
+os.environ['AWS_SECRET_ACCESS_KEY'] = 'supersecret'
+os.environ['MLFLOW_S3_ENDPOINT_URL'] = 'http://minio:9000'
+mlflow.set_tracking_uri('http://mlflow:5000')
+with mlflow.start_run():
+    with open('/tmp/hello.txt','w') as f: f.write('hola')
+    mlflow.log_artifact('/tmp/hello.txt')
+    print('Artifact URI:', mlflow.get_artifact_uri())
+    print('✅ Artifact logged')
+" > test_s3.py
+python test_s3.py
 
 
 

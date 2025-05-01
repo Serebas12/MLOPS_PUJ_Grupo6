@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # 1) Almacenamiento único Postgres (raw_data, clean_data y metadata de MLflow)
-  postgres:
+  mlops-postgres:
     image: postgres:13
     container_name: mlops-postgres
     environment:
@@ -10,9 +10,9 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_mlflow:/var/lib/postgresql/data
     networks:
-      - backend
+      #- backend
       - airflow_backend
     restart: always
 
@@ -30,33 +30,36 @@ services:
       - "9000:9000"
       - "9001:9001"
     networks:
-      - backend
+      #- backend
       - airflow_backend
     restart: always
 
   # 3) Servidor MLflow apuntando al mismo Postgres
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.10.0
+    build: ./mlflow
+    #image: ghcr.io/mlflow/mlflow:v2.10.0
     container_name: mlflow
     environment:
+    # no reconoce en las variables de entorno backend_store_uri y artifact_root, dejar quemados en el arranque de mlflow
       BACKEND_STORE_URI: postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
       ARTIFACT_ROOT: s3://mlflows3/artifacts
+      #AWS_S3_ADDRESSING_STYLE: path
+      #AWS_S3_SIGNATURE_VERSION: s3v4
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: supersecret
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
     command: >
       mlflow server
-        --backend-store-uri ${BACKEND_STORE_URI}
-        --default-artifact-root ${ARTIFACT_ROOT}
-        --host 0.0.0.0
-        --port 5000
+        --backend-store-uri postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
+        --default-artifact-root s3://mlflows3/artifacts
+        --host 0.0.0.0 --port 5000
     ports:
       - "5000:5000"
     depends_on:
-      - postgres
+      - mlops-postgres
       - minio
     networks:
-      - backend
+      #- backend
       - airflow_backend
     restart: always
 
@@ -71,7 +74,7 @@ services:
     depends_on:
       - mlflow
     networks:
-      - backend
+      #- backend
       - airflow_backend
     restart: always
 
@@ -88,7 +91,8 @@ services:
     depends_on:
       - fast_api
     networks:
-      - backend
+      #- backend
+      - airflow_backend
     restart: always
 
   # 6) Observabilidad: Prometheus
@@ -100,7 +104,8 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - backend
+      #- backend
+      - airflow_backend
     restart: always
 
   # 7) Observabilidad: Grafana
@@ -114,7 +119,8 @@ services:
     depends_on:
       - prometheus
     networks:
-      - backend
+      #- backend
+      - airflow_backend
     restart: always
 
   # 8) Locust
@@ -126,17 +132,17 @@ services:
     environment:
       - LOCUST_HOST=http://inference:8989
     networks:
-      - backend
+      #- backend
+      - airflow_backend
     restart: always
 
 volumes:
-  postgres_data:
+  postgres_mlflow:
   minio_data:
 
 networks:
-  backend:
-    driver: bridge
-
+  #backend:
+  #  driver: bridge
   # red externa compartida con Airflow
   airflow_backend:
     external: true
