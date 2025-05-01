@@ -1,20 +1,22 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: mlflow-mysql
+  # 1) Almacenamiento único Postgres (raw_data, clean_data y metadata de MLflow)
+  postgres:
+    image: postgres:13
+    container_name: mlops-postgres
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: mlflow
-      MYSQL_USER: mlflow
-      MYSQL_PASSWORD: mlflow
-    ports:
-      - "3306:3306"
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+      - airflow_backend
     restart: always
 
+  # 2) Artefactos de MLflow (S3 compatible)
   minio:
     image: minio/minio
     container_name: mlflow-minio
@@ -22,89 +24,120 @@ services:
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: supersecret
-    ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # Consola web
     volumes:
       - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - backend
+      - airflow_backend
     restart: always
 
+  # 3) Servidor MLflow apuntando al mismo Postgres
   mlflow:
-    build: ./mlflow
     image: ghcr.io/mlflow/mlflow:v2.10.0
     container_name: mlflow
     environment:
+      BACKEND_STORE_URI: postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
+      ARTIFACT_ROOT: s3://mlflows3/artifacts
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: supersecret
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
     command: >
       mlflow server
-      --host 0.0.0.0
-      --port 5000
-      --backend-store-uri mysql+pymysql://mlflow:mlflow@mysql:3306/mlflow
-      --default-artifact-root s3://mlflows3/artifacts
+        --backend-store-uri ${BACKEND_STORE_URI}
+        --default-artifact-root ${ARTIFACT_ROOT}
+        --host 0.0.0.0
+        --port 5000
     ports:
       - "5000:5000"
     depends_on:
-      - mysql
+      - postgres
       - minio
+    networks:
+      - backend
+      - airflow_backend
     restart: always
 
-  postgres-data-store:
-    image: postgres:14
-    container_name: postgres-data-store
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: supersecret
-      POSTGRES_DB: datadb
-    ports:
-      - "5432:5432"   # PostgreSQL usa 5432
-    volumes:
-      - postgres_data_store:/var/lib/postgresql/data
-    restart: always
-
+  # 4) API de inferencia (FastAPI) — expone /metrics para Prometheus
   fast_api:
     build: ./app
     container_name: api_models
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
       - "8989:8989"
+    depends_on:
+      - mlflow
+    networks:
+      - backend
+      - airflow_backend
+    restart: always
 
+  # 5) UI de inferencia (Streamlit)
+  streamlit:
+    build: ./streamlit
+    container_name: streamlit-ui
+    volumes:
+      - ./streamlit:/app
+    working_dir: /app
+    command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fast_api
+    networks:
+      - backend
+    restart: always
+
+  # 6) Observabilidad: Prometheus
   prometheus:
     image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - backend
+    restart: always
 
+  # 7) Observabilidad: Grafana
   grafana:
     image: grafana/grafana
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
       - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - backend
+    restart: always
 
-  jupyter:
-    build: ./jupyter
-    container_name: jupyter
+  # 8) Locust
+  locust:
+    build: ./streamlit
+    container_name: locust
     ports:
-      - "8888:8888"
-    volumes:
-      - ./jupyter:/app
+      - "8089:8089"
+    environment:
+      - LOCUST_HOST=http://inference:8989
+    networks:
+      - backend
+    restart: always
 
 volumes:
-  postgres-db-volume:
-  mysql_data:
+  postgres_data:
   minio_data:
-  mysql_data_store:
-  postgres_data_store:  # <-- agrega esto
-
 
 networks:
   backend:
     driver: bridge
 
-  hostnet:
+  # red externa compartida con Airflow
+  airflow_backend:
     external: true
-    name: host 
-
-
+    name: airflow_backend
