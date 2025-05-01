@@ -34,7 +34,8 @@ services:
     restart: always
 
   mlflow:
-    image: sebs1996/mlflow-mlops-p3:latest
+    build: ./mlflow
+    image: ghcr.io/mlflow/mlflow:v2.10.0
     container_name: mlflow
     environment:
       AWS_ACCESS_KEY_ID: admin
@@ -71,7 +72,7 @@ services:
     restart: always
 
   fast-api:
-    image: sebs1996/fastapi-mlops-p3:latest
+    build: ./app
     container_name: api_models
     ports:
       - "8989:8989"
@@ -96,7 +97,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
   jupyter:
-    image: sebs1996/jupyter-mlops-p3:latest
+    build: ./jupyter
     container_name: jupyter
     ports:
       - "8888:8888"
