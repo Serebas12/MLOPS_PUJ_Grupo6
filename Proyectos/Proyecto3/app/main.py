@@ -67,14 +67,6 @@ async def predict(input_data: ModelInput):
 
     """
     Puede realizar la predicción de la especie de un pingüino, seleccionando uno de los modelos pre entrenados.
-    
-    - **island**: Isla a la que pertenece el pingüino. Valores validos Biscoe, Dream y Torgersen.
-    - **sex**: Sexo del pingüinos. Valores validos MALE, FEMALE.
-    - **culmen_length_mm**: Longitud del culmen en mm.
-    - **culmen_depth_mm**: Profundidad del culmen en mm.
-    - **flipper_length_mm**: Profundidad de la aleta en mm.
-    - **body_mass_g**: Masa corporal en mm.
-    - **model**: Modelo que se desea utilizar. 
 
     Devuelve un JSON con la predicción.
     """
@@ -115,7 +107,7 @@ async def predict(input_data: ModelInput):
         try:
             # Conexión a la base de datos PostgreSQL
             connection = psycopg2.connect(
-                host='postgres-data-store',
+                host='mlops-postgres',
                 database='datadb',
                 user='admin',
                 password='supersecret'
