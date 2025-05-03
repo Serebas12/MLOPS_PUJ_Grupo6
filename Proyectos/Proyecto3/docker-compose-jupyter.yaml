@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # 8. Jupyter para pruebas
+  jupyter:
+    build: ./jupyter
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./jupyter:/app
+
+networks:
+  airflow:
+    external: true
+    name: airflow_backend

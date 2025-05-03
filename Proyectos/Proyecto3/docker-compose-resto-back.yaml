@@ -1,9 +1,10 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: mlflow-mysql
+  # 1) Almacenamiento único Postgres (raw_data, clean_data y metadata de MLflow)
+  mlops-postgres:
+    image: postgres:13
+    container_name: mlops-postgres
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: mlflow
@@ -13,10 +14,17 @@ services:
       - "3306:3306"
     labels:
       kompose.service.type: nodeport
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_mlflow:/var/lib/postgresql/data
+    networks:
+      #- backend
+      - airflow_backend
     restart: always
 
+  # 2) Artefactos de MLflow (S3 compatible)
   minio:
     image: minio/minio
     container_name: mlflow-minio
@@ -31,29 +39,43 @@ services:
       kompose.service.type: nodeport
     volumes:
       - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      #- backend
+      - airflow_backend
     restart: always
 
+  # 3) Servidor MLflow apuntando al mismo Postgres
   mlflow:
     build: ./mlflow
-    image: ghcr.io/mlflow/mlflow:v2.10.0
+    #image: ghcr.io/mlflow/mlflow:v2.10.0
     container_name: mlflow
     environment:
+    # no reconoce en las variables de entorno backend_store_uri y artifact_root, dejar quemados en el arranque de mlflow
+      BACKEND_STORE_URI: postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
+      ARTIFACT_ROOT: s3://mlflows3/artifacts
+      #AWS_S3_ADDRESSING_STYLE: path
+      #AWS_S3_SIGNATURE_VERSION: s3v4
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: supersecret
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
     command: >
       mlflow server
-      --host 0.0.0.0
-      --port 5000
-      --backend-store-uri mysql+pymysql://mlflow:mlflow@mysql:3306/mlflow
-      --default-artifact-root s3://mlflows3/artifacts
+        --backend-store-uri postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
+        --default-artifact-root s3://mlflows3/artifacts
+        --host 0.0.0.0 --port 5000
     ports:
       - "5000:5000"
     labels:
       kompose.service.type: nodeport
     depends_on:
-      - mysql
+      - mlops-postgres
       - minio
+    networks:
+      #- backend
+      - airflow_backend
     restart: always
 
   postgres-data-store:
@@ -72,14 +94,46 @@ services:
     restart: always
 
   fast-api:
+  # 4) API de inferencia (FastAPI) — expone /metrics para Prometheus
+  fast_api:
     build: ./app
     container_name: api_models
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
       - "8989:8989"
     labels:
       kompose.service.type: nodeport
+    depends_on:
+      - mlflow
+    networks:
+      #- backend
+      - airflow_backend
+    restart: always
+
+  # 5) UI de inferencia (Streamlit)
+  streamlit:
+    build: ./streamlit
+    container_name: streamlit-ui
+    volumes:
+      - ./streamlit:/app
+    working_dir: /app
+    command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fast_api
+    networks:
+      #- backend
+      - airflow_backend
+    restart: always
+
+  # 6) Observabilidad: Prometheus
   prometheus:
     image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
     labels:
@@ -87,8 +141,12 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
 
+  # 7) Observabilidad: Grafana
   grafana:
     image: grafana/grafana
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
       - "3000:3000"
     labels:
@@ -96,30 +154,22 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
-  jupyter:
-    build: ./jupyter
-    container_name: jupyter
+  # 8) Locust
+  locust:
+    build: ./streamlit
+    container_name: locust
     ports:
       - "8888:8888"
     labels:
       kompose.service.type: nodeport
     volumes:
       - ./jupyter:/app
-
-volumes:
-  postgres-db-volume:
-  mysql_data:
-  minio_data:
-  mysql_data_store:
-  postgres_data_store:  
-
+>>>>>>> a0142ddcc0af85f8124c44dbed67d1adef4ce54c:Proyectos/Proyecto3/docker-compose-resto.yaml
 
 networks:
-  backend:
-    driver: bridge
-
-  hostnet:
+  #backend:
+  #  driver: bridge
+  # red externa compartida con Airflow
+  airflow_backend:
     external: true
-    name: host 
-
-
+    name: airflow_backend
