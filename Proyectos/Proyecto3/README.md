@@ -109,7 +109,7 @@ levantamos streamlit dentro de un contenedor considerando que este paso es fáci
 
 Despliegue del docker compose 
 
-docker compose -f docker-compose-resto.yaml up --build -d
+docker compose -f docker-compose-kubernete.yaml up --build -d
 
 
 
@@ -128,7 +128,14 @@ docker push sebs1996/mlflow-mlops-p3:latest
 
 docker build -t sebs1996/jupyter-mlops-p3:latest ./jupyter
 docker push sebs1996/jupyter-mlops-p3:latest
+
+docker build -t sebs1996/streamlit-mlops-p3:latest ./streamlit
+docker push sebs1996/streamlit-mlops-p3:latest
  
+docker build -t sebs1996/locust-mlops-p3:latest ./locust
+docker push sebs1996/locust-mlops-p3:latest 
+
+
  
 Se ejecuta el kompose pero se debe cambiar lo siguiente
 

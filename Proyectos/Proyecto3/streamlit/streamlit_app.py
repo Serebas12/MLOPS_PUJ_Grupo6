@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # URL base de tu API (ajustar si estás en local o diferente URL)
-API_URL = "http://localhost:8989"
+API_URL = "http://fast-api:8989"
 
 st.title("Proyecto 3")
 

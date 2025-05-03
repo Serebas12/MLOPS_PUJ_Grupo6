@@ -9,40 +9,35 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
-    ports:
-      - "5432:5432"  
-    labels:
-      kompose.service.type: nodeport
     volumes:
       - postgres_mlflow:/var/lib/postgresql/data
     networks:
+      #- backend
       - airflow_backend
     restart: always
-
 
   # 2) Artefactos de MLflow (S3 compatible)
   minio:
     image: minio/minio
-    container_name: minio
+    container_name: mlflow-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: supersecret
-    ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # Consola web
-    labels:
-      kompose.service.type: nodeport
     volumes:
       - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     networks:
+      #- backend
       - airflow_backend
     restart: always
 
-
   # 3) Servidor MLflow apuntando al mismo Postgres
   mlflow:
-    image: sebs1996/mlflow-mlops-p3:latest
+    build: ./mlflow
+    #image: ghcr.io/mlflow/mlflow:v2.10.0
     container_name: mlflow
     environment:
     # no reconoce en las variables de entorno backend_store_uri y artifact_root, dejar quemados en el arranque de mlflow
@@ -60,54 +55,56 @@ services:
         --host 0.0.0.0 --port 5000
     ports:
       - "5000:5000"
-    labels:
-      kompose.service.type: nodeport      
     depends_on:
       - mlops-postgres
       - minio
     networks:
+      #- backend
       - airflow_backend
     restart: always
 
   # 4) API de inferencia (FastAPI) — expone /metrics para Prometheus
-  fast-api:
-    image: sebs1996/fastapi-mlops-p3:latest
-    container_name: fast-api
+  fast_api:
+    build: ./app
+    container_name: api_models
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
       - "8989:8989"
-    labels:
-      kompose.service.type: nodeport
+    depends_on:
+      - mlflow
     networks:
-      - airflow_backend  
+      #- backend
+      - airflow_backend
+    restart: always
 
   # 5) UI de inferencia (Streamlit)
   streamlit:
-    image: sebs1996/streamlit-mlops-p3:latest
-    container_name: streamlit
+    build: ./streamlit
+    container_name: streamlit-ui
+    volumes:
+      - ./streamlit:/app
     working_dir: /app
     command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
     ports:
       - "8501:8501"
-    labels:
-      kompose.service.type: nodeport
+    depends_on:
+      - fast_api
     networks:
+      #- backend
       - airflow_backend
-    volumes:
-      - ./streamlit:/app
     restart: always
-
 
   # 6) Observabilidad: Prometheus
   prometheus:
     image: prom/prometheus
     container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
-    labels:
-      kompose.service.type: nodeport
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
+      #- backend
       - airflow_backend
     restart: always
 
@@ -115,48 +112,38 @@ services:
   grafana:
     image: grafana/grafana
     container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
       - "3000:3000"
-    labels:
-      kompose.service.type: nodeport
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
     networks:
-      - airflow_backend
-
-  # 8) Locust
-  locust:
-    image: sebs1996/locust-mlops-p3:latest 
-    container_name: locust
-    ports:
-      - "8089:8089"
-    labels:
-      kompose.service.type: nodeport
-    environment:
-      - LOCUST_HOST=http://inference:8989
-    networks:
+      #- backend
       - airflow_backend
     restart: always
 
-  # 9) Jupyter
-  jupyter:
-    image: sebs1996/jupyter-mlops-p3:latest
-    container_name: jupyter
+  # 8) Locust
+  locust:
+    build: ./streamlit
+    container_name: locust
     ports:
-      - "8888:8888"
-    labels:
-      kompose.service.type: nodeport
-    volumes:
-      - ./jupyter:/app
+      - "8089:8089"
+    environment:
+      - LOCUST_HOST=http://inference:8989
     networks:
+      #- backend
       - airflow_backend
+    restart: always
 
 volumes:
   postgres_mlflow:
   minio_data:
 
 networks:
+  #backend:
+  #  driver: bridge
+  # red externa compartida con Airflow
   airflow_backend:
     external: true
     name: airflow_backend
-
