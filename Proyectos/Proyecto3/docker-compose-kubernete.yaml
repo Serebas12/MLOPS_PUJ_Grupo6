@@ -84,18 +84,13 @@ services:
   streamlit:
     image: sebs1996/streamlit-mlops-p3:latest
     container_name: streamlit
-    working_dir: /app
-    command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
     ports:
       - "8501:8501"
     labels:
       kompose.service.type: nodeport
     networks:
       - airflow_backend
-    volumes:
-      - ./streamlit:/app
     restart: always
-
 
   # 6) Observabilidad: Prometheus
   prometheus:
