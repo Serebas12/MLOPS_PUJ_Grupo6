@@ -9,8 +9,10 @@ services:
       - "8888:8888"
     volumes:
       - ./jupyter:/app
+    networks:
+      - airflow_backend
 
 networks:
-  airflow:
+  airflow_backend:
     external: true
     name: airflow_backend

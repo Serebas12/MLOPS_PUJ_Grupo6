@@ -8,6 +8,7 @@ Iniciamos con el proceso arrancando el todos los servicios en docker compose con
 
 ```bash 
 sudo docker compose -f docker-compose-resto.yaml up --build -d
+sudo docker compose -f docker-compose-resto.yaml up fast_api --build -d
 ```
 
 ```bash
@@ -63,7 +64,7 @@ el primer dag en correr por única vez es raw_data_initial_batch_load, este DAG 
 Luego seguimos con el DAG clean_data_pipeline, el cual se encarga de hacer la carga de datos de la rawdata, hace la limpieza de los mismos y los carga, es importante sólo encenderlo después de que finalice raw_data_initial_batch_load, así garantizamos que el flujo de consumo de datos quede activo, adicional, tenemos las columnas load_date y processed_date que son las columnas que nos permiten hacer seguimiento de la carga y flujo de datos en las cargas de datos
 
 
-docker exec -it proyecto3-postgres-1 bash
+docker exec -it proyecto3-mlops-postgres-1 bash
 psql -U airflow -d airflow
 psql -U admin -d supersecret
 \dn

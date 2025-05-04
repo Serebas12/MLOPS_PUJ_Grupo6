@@ -1,165 +1,198 @@
-from fastapi import FastAPI, Response
-from pydantic import BaseModel
-import pickle
-import numpy as np
-import pandas as pd
+from fastapi import FastAPI, Response, BackgroundTasks
+from pydantic import BaseModel, Field
+from typing import Optional
 import os
-import mlflow
-import boto3
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-import time
+import pandas as pd
+import mlflow.sklearn
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 import psycopg2
 import pytz
 from datetime import datetime
 
-#Inicia la aplicación
+# Inicia la aplicación
 app = FastAPI(
-    title="Predictor API – ML Model Serving",
+    title="Predictor API – ML Model Serving: Diabetes Readmission",
     description="Realizar predicciones usando el modelo más reciente en stage Production",
     version="1.0.0"
 )
 
-# Métricas Prometheus
+# Cargo el pipeline completo en memoria
+model = mlflow.sklearn.load_model("models:/DiabetesReadmissionModel/Production")
+
+# Métrica Prometheus
 REQUEST_COUNT = Counter('predict_requests_total', 'Total de peticiones de predicción')
 
-#Se genera decorador para listar los modelos 
+# Cadena de conexión (presupone que POSTGRES_URI está definido en env)
+POSTGRES_URI = os.getenv("POSTGRES_URI")
 
-MODEL_DIR = "/app/models/"
 
-@app.get("/listar_modelos")
+class PatientData(BaseModel):
+    encounter_id: int = Field(..., description="ID único del encuentro (usar 0 para pruebas)")
+    patient_nbr: int = Field(..., description="ID del paciente")
+    race: Optional[str]
+    gender: str
+    age: str
+    weight: Optional[str]
+    admission_type_id: int
+    discharge_disposition_id: int
+    admission_source_id: int
+    time_in_hospital: int
+    payer_code: Optional[str] = None
+    medical_specialty: Optional[str] = None
+    num_lab_procedures: int
+    num_procedures: int
+    num_medications: int
+    number_outpatient: int
+    number_emergency: int
+    number_inpatient: int
+    diag_1: str
+    diag_2: Optional[str] = None
+    diag_3: Optional[str] = None
+    number_diagnoses: int
+    max_glu_serum: str
+    a1cresult: str
+    metformin: str
+    repaglinide: str
+    nateglinide: str
+    chlorpropamide: str
+    glimepiride: str
+    acetohexamide: str
+    glipizide: str
+    glyburide: str
+    tolbutamide: str
+    pioglitazone: str
+    rosiglitazone: str
+    acarbose: str
+    miglitol: str
+    troglitazone: str
+    tolazamide: str
+    examide: str
+    citoglipton: str
+    insulin: str
+    glyburide_metformin: str = Field(..., alias="glyburide-metformin")
+    glipizide_metformin: str = Field(..., alias="glipizide-metformin")
+    glimepiride_pioglitazone: str = Field(..., alias="glimepiride-pioglitazone")
+    metformin_rosiglitazone: str = Field(..., alias="metformin-rosiglitazone")
+    metformin_pioglitazone: str = Field(..., alias="metformin-pioglitazone")
+    change: str
+    diabetesmed: str
 
-async def list_models():
-    """
-    Rastrea el modelo más reciente para su utilización.
-    """
+    class Config:
+        allow_population_by_field_name = True
+        orm_mode = True
 
-# Configurar la URL del servidor de MLflow (ajusta según tu caso)
+
+def log_to_db(data: PatientData, prediction: str):
+    """Inserta en raw_data.patient_predictions (sin readmitted)"""
+    conn = cur = None
     try:
-        mlflow.set_tracking_uri("http://mlflow:5000") 
+        conn = psycopg2.connect(POSTGRES_URI)
+        cur = conn.cursor()
 
-        # Obtener la lista de modelos registrados en MLflow
-        models = mlflow.search_registered_models()
+        # Creo tabla plana si no existe
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS raw_data.patient_predictions (
+                encounter_id                INT,
+                patient_nbr                 INT,
+                race                        TEXT,
+                gender                      TEXT,
+                age                         TEXT,
+                weight                      TEXT,
+                admission_type_id           INT,
+                discharge_disposition_id    INT,
+                admission_source_id         INT,
+                time_in_hospital            INT,
+                payer_code                  TEXT,
+                medical_specialty           TEXT,
+                num_lab_procedures          INT,
+                num_procedures              INT,
+                num_medications             INT,
+                number_outpatient           INT,
+                number_emergency            INT,
+                number_inpatient            INT,
+                diag_1                      TEXT,
+                diag_2                      TEXT,
+                diag_3                      TEXT,
+                number_diagnoses            INT,
+                max_glu_serum               TEXT,
+                A1Cresult                   TEXT,
+                metformin                   TEXT,
+                repaglinide                 TEXT,
+                nateglinide                 TEXT,
+                chlorpropamide              TEXT,
+                glimepiride                 TEXT,
+                acetohexamide               TEXT,
+                glipizide                   TEXT,
+                glyburide                   TEXT,
+                tolbutamide                 TEXT,
+                pioglitazone                TEXT,
+                rosiglitazone               TEXT,
+                acarbose                    TEXT,
+                miglitol                    TEXT,
+                troglitazone                TEXT,
+                tolazamide                  TEXT,
+                examide                     TEXT,
+                citoglipton                 TEXT,
+                insulin                     TEXT,
+                glyburide_metformin         TEXT,
+                glipizide_metformin         TEXT,
+                glimepiride_pioglitazone    TEXT,
+                metformin_rosiglitazone     TEXT,
+                metformin_pioglitazone      TEXT,
+                change                      TEXT,
+                diabetesMed                 TEXT,
+                prediction                  TEXT,
+                model_version               TEXT,
+                executed_at                 TIMESTAMPTZ
+            );
+        """)
 
-        # Mostrar los modelos disponibles
-        res_model=[]
-        for model in models:
-            res_model.append(model.name)
+        # Preparo columnas y valores
+        payload = data.dict(by_alias=False)
+        cols = list(payload.keys()) + ["prediction", "model_version", "executed_at"]
+        vals = list(payload.values()) + [
+            prediction,
+            "Production",
+            datetime.now(pytz.timezone("America/Bogota"))
+        ]
+        ph = ", ".join(["%s"] * len(vals))
+        cur.execute(
+            f"INSERT INTO raw_data.patient_predictions ({', '.join(cols)}) VALUES ({ph});",
+            vals
+        )
+        conn.commit()
 
-        return {"modelos_disponibles": res_model}
     except Exception as e:
-        return {"error": f"No se pudieron listar los modelos: {str(e)}"}
+        print(f"[log_to_db] Error al insertar: {e}")
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
-#Datos requeridos de la solicitud
-class ModelInput(BaseModel):
-    island: str	
-    culmen_length_mm: float	
-    culmen_depth_mm: float
-    flipper_length_mm: float	
-    body_mass_g: float	
-    sex: str
-    model: str	
-
-#Se genera el decorador por modelo
 @app.post("/predict")
-
-async def predict(input_data: ModelInput):
-
-    """
-    Puede realizar la predicción de la especie de un pingüino, seleccionando uno de los modelos pre entrenados.
-    
-    - **island**: Isla a la que pertenece el pingüino. Valores validos Biscoe, Dream y Torgersen.
-    - **sex**: Sexo del pingüinos. Valores validos MALE, FEMALE.
-    - **culmen_length_mm**: Longitud del culmen en mm.
-    - **culmen_depth_mm**: Profundidad del culmen en mm.
-    - **flipper_length_mm**: Profundidad de la aleta en mm.
-    - **body_mass_g**: Masa corporal en mm.
-    - **model**: Modelo que se desea utilizar. 
-
-    Devuelve un JSON con la predicción.
-    """
-
-    ### Predicción modelo 1
-
+async def predict(input_data: PatientData, bg: BackgroundTasks):
     REQUEST_COUNT.inc()
 
+    # 1) Construyo DataFrame
     try:
-        # Tratamiento de información
-        data = pd.DataFrame([{
-            "island": input_data.island,
-            "sex": input_data.sex,
-            "culmen_length_mm": input_data.culmen_length_mm,
-            "culmen_depth_mm": input_data.culmen_depth_mm,
-            "flipper_length_mm": input_data.flipper_length_mm,
-            "body_mass_g": input_data.body_mass_g
-        }])
-
-        os.environ['MLFLOW_S3_ENDPOINT_URL'] = "http://minio:9000"
-        os.environ['AWS_ACCESS_KEY_ID'] = 'admin'
-        os.environ['AWS_SECRET_ACCESS_KEY'] = 'supersecret'
-
-        mlflow.set_tracking_uri("http://mlflow:5000")
-
-        model_name = input_data.model
-        model_production_uri = "models:/{model_name}/production".format(model_name=model_name)
-
-        # Load model as a PyFuncModel.
-        loaded_model = mlflow.pyfunc.load_model(model_uri=model_production_uri)
-
-        # Prediccion del modelo
-        predict = loaded_model.predict(data)
-        resultado = predict[0]
-
-
-        # --- Guardar en la base de datos postgres ---
-        try:
-            # Conexión a la base de datos PostgreSQL
-            connection = psycopg2.connect(
-                host='postgres-data-store',
-                database='datadb',
-                user='admin',
-                password='supersecret'
-            )
-
-            cursor = connection.cursor()
-
-            insert_query = """
-                INSERT INTO resultados_modelo (island, culmen_length_mm, culmen_depth_mm, flipper_length_mm, body_mass_g, sex, model, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-            """
-
-            # Obtener la hora actual en zona horaria Colombia
-            colombia_timezone = pytz.timezone("America/Bogota")
-            created_at_colombia = datetime.now(colombia_timezone)
-            created_at_utc = created_at_colombia.astimezone(pytz.utc)
-
-
-            values = (
-                input_data.island,
-                input_data.culmen_length_mm,
-                input_data.culmen_depth_mm,
-                input_data.flipper_length_mm,
-                input_data.body_mass_g,
-                input_data.sex,
-                input_data.model,
-                created_at_utc
-            )
-
-            cursor.execute(insert_query, values)
-            connection.commit()
-
-        except Exception as e:
-            print(f"Error al guardar en la base de datos: {e}")
-
-        finally:
-            if connection:
-                cursor.close()
-                connection.close()
-
-        return {"prediction": resultado}
+        payload = input_data.dict(by_alias=False)
+        df = pd.DataFrame([payload])
     except Exception as e:
-        return {"prediction": f"Error al cargar el modelo: {e}"}
+        return {"error": f"Error construyendo DataFrame: {e}"}
+
+    # 2) Predicción con todo el pipeline
+    try:
+        resultado = model.predict(df)[0]
+    except Exception as e:
+        return {"error": f"Error en predicción: {e}"}
+
+    # 3) Log en background si no es prueba
+    if input_data.encounter_id != 0:
+        bg.add_task(log_to_db, input_data, str(resultado))
+
+    return {"prediction": resultado}
+
 
 @app.get("/metrics")
 def metrics():
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)    
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
