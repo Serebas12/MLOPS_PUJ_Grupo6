@@ -5,12 +5,6 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 import pandas as pd
 import numpy as np
-
-# >>> Nuevos imports para S3 / MinIO
-import boto3
-from botocore.client import Config
-# <<<
-
 import mlflow
 import mlflow.sklearn
 from sklearn.pipeline import Pipeline
@@ -19,8 +13,9 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, f_classif
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+#from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 # Hiperparámetros para GridSearch
 param_grid = {
@@ -41,36 +36,10 @@ default_args = {
 
 #   modeling
 def train_and_register():
-    # —————— 0) Configurar S3 / MinIO ——————
-    S3_ENDPOINT = "http://minio:9000"
-    S3_BUCKET   = "mlflows3"
-    AWS_KEY     = "admin"
-    AWS_SECRET  = "supersecret"
-
-    os.environ['AWS_ACCESS_KEY_ID']      = AWS_KEY
-    os.environ['AWS_SECRET_ACCESS_KEY']  = AWS_SECRET
-    os.environ['MLFLOW_S3_ENDPOINT_URL'] = S3_ENDPOINT
-
-    s3 = boto3.client(
-        's3',
-        endpoint_url=S3_ENDPOINT,
-        aws_access_key_id=AWS_KEY,
-        aws_secret_access_key=AWS_SECRET,
-        config=Config(signature_version='s3v4', s3={'addressing_style':'path'})
-    )
-    try:
-        s3.head_bucket(Bucket=S3_BUCKET)
-    except Exception:
-        s3.create_bucket(Bucket=S3_BUCKET)
-    # ————————————————————————————————
-
     # 1) Cargar datos limpios
     hook = PostgresHook(postgres_conn_id='postgres_default')
     conn = hook.get_conn()
-    df = pd.read_sql(
-        "SELECT * FROM clean_data.diabetes_clean WHERE split in ('train','valid','test')",
-        con=conn
-    )
+    df = pd.read_sql('SELECT * FROM clean_data.diabetes_clean WHERE split in (\'train\', \'valid\', \'test\')', con=conn)
     conn.close()
 
     # 2) Separar splits
@@ -110,11 +79,11 @@ def train_and_register():
         ('classifier', RandomForestClassifier(random_state=42))
     ])
 
-    # 7) RandomizedSearchCV: combinar train + valid para búsqueda
+    # 7) GridSearchCV: combinar train + valid para búsqueda
     grid_search = RandomizedSearchCV(
         estimator=pipeline,
         param_distributions=param_grid,
-        n_iter=30,
+        n_iter=30,            
         cv=2,
         scoring="accuracy",
         n_jobs=1,
@@ -124,18 +93,27 @@ def train_and_register():
     X_grid = pd.concat([X_train, X_valid])
     y_grid = pd.concat([y_train, y_valid])
     grid_search.fit(X_grid, y_grid)
-    best_model  = grid_search.best_estimator_
+    best_model = grid_search.best_estimator_
     best_params = grid_search.best_params_
 
     # 8) Evaluación en test
     preds = best_model.predict(X_test)
+    #proba = best_model.predict_proba(X_test)[:,1]
+    #metrics = {
+    #    'test_accuracy': accuracy_score(y_test, preds),
+    #    'test_precision': precision_score(y_test, preds, average='weighted'),
+    #    'test_recall': recall_score(y_test, preds, average='weighted'),
+    #    'test_f1': f1_score(y_test, preds, average='weighted'),
+    #    'test_auc': roc_auc_score(y_test, proba)
+    #}
     proba = best_model.predict_proba(X_test)
     metrics = {
-       'test_accuracy' : accuracy_score(y_test, preds),
+       'test_accuracy':  accuracy_score(y_test, preds),
        'test_precision': precision_score(y_test, preds, average='weighted'),
-       'test_recall'   : recall_score(y_test, preds, average='weighted'),
-       'test_f1'       : f1_score(y_test, preds, average='weighted'),
-       'test_auc'      : roc_auc_score(
+       'test_recall':    recall_score(y_test, preds, average='weighted'),
+       'test_f1':        f1_score(y_test, preds, average='weighted'),
+       # AUC multiclase: one-vs-rest, agregación ponderada
+       'test_auc': roc_auc_score(
                              y_test,
                              proba,
                              multi_class='ovr',
@@ -150,7 +128,7 @@ def train_and_register():
         mlflow.log_params(best_params)
         mlflow.log_metrics(metrics)
         mlflow.sklearn.log_model(best_model, artifact_path='model')
-        run_id    = mlflow.active_run().info.run_id
+        run_id = mlflow.active_run().info.run_id
         model_uri = f"runs:/{run_id}/model"
         mv = mlflow.register_model(model_uri, 'DiabetesReadmissionModel')
     
@@ -164,7 +142,7 @@ def train_and_register():
     )
 
 with DAG(
-    'model_training_pipeline',
+    'model_training_pipeline_backup',
     default_args=default_args,
     schedule_interval='@weekly',
     catchup=False,
