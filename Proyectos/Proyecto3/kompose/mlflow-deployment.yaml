@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    kompose.cmd: C:\Program Files\Kompose\kompose.exe -f docker-compose-resto.yaml convert -o kompose/
+    kompose.cmd: C:\Program Files\Kompose\kompose.exe -f docker-compose-kubernete.yaml convert -o kompose/
     kompose.service.type: nodeport
     kompose.version: 1.35.0 (9532ceef3)
   labels:
@@ -16,7 +16,7 @@ spec:
   template:
     metadata:
       annotations:
-        kompose.cmd: C:\Program Files\Kompose\kompose.exe -f docker-compose-resto.yaml convert -o kompose/
+        kompose.cmd: C:\Program Files\Kompose\kompose.exe -f docker-compose-kubernete.yaml convert -o kompose/
         kompose.service.type: nodeport
         kompose.version: 1.35.0 (9532ceef3)
       labels:
@@ -26,19 +26,23 @@ spec:
         - args:
             - mlflow
             - server
+            - --backend-store-uri
+            - postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
+            - --default-artifact-root
+            - s3://mlflows3/artifacts
             - --host
             - 0.0.0.0
             - --port
             - "5000"
-            - --backend-store-uri
-            - mysql+pymysql://mlflow:mlflow@mysql:3306/mlflow
-            - --default-artifact-root
-            - s3://mlflows3/artifacts
           env:
+            - name: ARTIFACT_ROOT
+              value: s3://mlflows3/artifacts
             - name: AWS_ACCESS_KEY_ID
               value: admin
             - name: AWS_SECRET_ACCESS_KEY
               value: supersecret
+            - name: BACKEND_STORE_URI
+              value: postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
             - name: MLFLOW_S3_ENDPOINT_URL
               value: http://minio:9000
           image: sebs1996/mlflow-mlops-p3:latest

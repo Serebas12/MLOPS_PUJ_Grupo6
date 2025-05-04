@@ -2,8 +2,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   labels:
-    io.kompose.service: mysql-data
-  name: mysql-data
+    io.kompose.service: postgres-mlflow
+  name: postgres-mlflow
 spec:
   accessModes:
     - ReadWriteOnce

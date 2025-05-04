@@ -6,14 +6,14 @@ metadata:
     kompose.service.type: nodeport
     kompose.version: 1.35.0 (9532ceef3)
   labels:
-    io.kompose.service: mlflow
-  name: mlflow
+    io.kompose.service: streamlit
+  name: streamlit
 spec:
   ports:
-    - name: "5000"
-      port: 5000
-      targetPort: 5000
-      nodePort: 30500 
+    - name: "8501"
+      port: 8501
+      targetPort: 8501
+      nodePort: 30850
   selector:
-    io.kompose.service: mlflow
+    io.kompose.service: streamlit
   type: NodePort

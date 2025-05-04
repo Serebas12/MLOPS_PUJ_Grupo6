@@ -178,7 +178,22 @@ copiarlo en una ruta de sistema y agregarlo en las variables del sistema como un
 
 4. convertir el docker-compose 
 
-kompose -f docker-compose-resto.yaml convert -o kompose/
+kompose -f docker-compose-kubernete.yaml convert -o kompose/
+
+
+4.1. se realiza configuración de los service para garantizar los puertos del kubernete (deben estar entre 30000 – 32767)
+
+
+fast-api        8989  ->   30898
+grafana         3000  ->   30300
+jupyter         8888  ->   30888   
+locust          8089  ->   30808
+minio           9000  ->   30900
+                9001  ->   30901
+mlflow          5000  ->   30500
+mlops-postgres  5432  ->   30543
+prometheus      9090  ->   30909
+streamlit       8501  ->   30850
 
 
 5. Iniciar el minikube 
@@ -188,6 +203,8 @@ minikube start
 6. despliegue de todos los kompose
 
 kubectl apply -f kompose/
+
+
 
 7. para obsercar los servicios
 
@@ -203,6 +220,10 @@ minikube ip
 
 9. ver si todos los servicios se encuentrar runnig 
 kubectl get pods
+
+
+
+
 
 
 
