@@ -116,42 +116,160 @@ docker compose -f docker-compose-kubernete.yaml up --build -d
 
 
 
-Antes de desplegar el kubernete: 
 
-1. Construccion de imagenes y carga en docker hub, dado que kubernete no permite la construcción de imagenes 
 
+# Kubernetes 
+
+## Construcción de imágenes
+
+Un requisito previo para la implementación de Kubernetes es que todas las imágenes de los servicios estén construidas de antemano. Para ello se crean las imágenes de forma local, se cargan en el repositorio de Docker Hub y finalmente se actualiza el archivo docker‑compose, reemplazando las referencias locales por las nuevas imágenes. Este procedimiento debe realizarse para los siguientes servicios:
+
+- **fast-api**
+```bash
 docker build -t sebs1996/fastapi-mlops-p3:latest ./app
 docker push sebs1996/fastapi-mlops-p3:latest
+```
 
+- **mlflow**
+```bash
 docker build -t sebs1996/mlflow-mlops-p3:latest ./mlflow
 docker push sebs1996/mlflow-mlops-p3:latest
+```
 
+
+- **jupyter**
+```bash
 docker build -t sebs1996/jupyter-mlops-p3:latest ./jupyter
 docker push sebs1996/jupyter-mlops-p3:latest
+```
 
+- **streamlit**
+```bash
 docker build -t sebs1996/streamlit-mlops-p3:latest ./streamlit
 docker push sebs1996/streamlit-mlops-p3:latest
- 
+```
+
+- **locust**
+```bash
 docker build -t sebs1996/locust-mlops-p3:latest ./locust
-docker push sebs1996/locust-mlops-p3:latest 
+docker push sebs1996/locust-mlops-p3:latest
+```
+
+## Configuración NodePort
+Para permitir la comunicación externa con los servicios expuestos en el clúster de Kubernetes, es necesario configurar el type del servicio como NodePort. Esto se hace en el docker-compose.yaml, añadiendo una etiqueta en la sección labels con el valor kompose.service.type: nodeport para cada servicio. A continuación se muestra un ejemplo para el servicio de FastAPI:
+
+<div align="center">
+  <img src="images/node_port.png" alt="streamlit" width="300"/>
+</div>
 
 
- 
-Se ejecuta el kompose pero se debe cambiar lo siguiente
+## Generación de manifiestos con Kompose.
 
-1. Cambiar puertos para garantizar que estos sean estaticos 
+Una vez verificado el funcionamiento de la arquitectura propuesta, es necesario crear los manifiestos que habilitan el despliegue de los recursos en Kubernetes. Estos manifiestos se generarán automáticamente con **Kompose** y se almacenarán en la carpeta Kompose/ de este repositorio.
 
-2. configuración de volumenes para que puedan ser tomados por el kubernete, caso especial el archivo de prometheus.yaml 
+```bash
+kompose -f docker-compose-kubernete.yaml convert -o kompose/
+```
 
-- se debe crear el configmap 
+## Configuración de volúmenes y archivos locales
+
+En Kubernetes los volúmenes se gestionan de manera diferente, por lo que cualquier volumen o archivo de configuración local debe convertirse en un manifiesto antes de desplegarse. Este es el caso del servicio **Prometheus**, cuyo archivo prometheus.yaml debe transformarse en un **ConfigMap** y ubicarse en la carpeta Kompose/. Por ello, se crea el manifiesto prometheus-configmap.yaml.
+
+```bash
 kubectl create configmap prometheus-config --from-file=prometheus.yml=.\prometheus.yml --dry-run=client -o yaml > prometheus-configmap.yaml
+```
 
-- se debe crear el configmap
-kubectl apply -f prometheus-configmap.yaml
+Además, el manifiesto *prometheus-deployment.yaml* se actualiza para montar el nuevo volumen proveniente del **ConfigMap**, garantizando que el contenedor de Prometheus cargue correctamente el archivo de configuración:
 
-- se aplica deployment actualizado 
-kubectl apply -f prometheus-deployment.yaml
+<div align="center">
+  <img src="images/prometheus_deploy.png" alt="streamlit" width="400"/>
+</div>
 
+
+## Configuración de los puertos 
+
+Por defecto, cuando se despliega un servicio en un kubertenes, se le asigna un puerto dentro del rango de 30000 – 32767, sin embargo, como estos servicios serán consumidos por fuera del kubenete, se requiere, por buena practiva, asignar un puerto especifico para cada uno de los servicios. Para lograr esto, se debe modificar cada uno de los manifiesto reelacionados a services, indicando el nodePort a usar. A continuación se muestra un ejemplo para el servicio de fastapi:
+
+<div align="center">
+  <img src="images/kubernetes_ports.png" alt="streamlit" width="600"/>
+</div>
+
+
+Los puertos asignados para cada uno de los servicios son: 
+
+| **Servicio**        | **Puerto Contenedor**  | **Puerto Kubernetes**|     
+|---------------------|------------------------|----------------------|                  
+| **fast-api**        | 8989                   | 30898                |
+| **grafan**          | 3000                   | 30300                |               
+| **jupyter**         | 8888                   | 30888                |               
+| **locust**          | 8089                   | 30808                |
+| **minio**           | 9000                   | 30900                |
+|                     | 9001                   | 30901                |
+| **mlflow**          | 5000                   | 30500                |
+| **mlops-postgres**  | 5432                   | 30543                |
+| **prometheus**      | 9090                   | 30909                |
+| **streamlit**       | 8501                   | 30850                |
+
+## Inicialización del kubernetes
+
+Para el despliegue local de Kubernetes se utilizará **Minikube**. El primer paso consiste en iniciar un nuevo clúster:
+
+```bash
+minikube start
+```
+
+La comunicación entre el clúster de Kubernetes y los demás servicios se realiza mediante su dirección IP, la cual puede verificarse con:
+
+```bash
+minikube ip
+```
+
+En caso de requerirse, el cluster puede ser eliminado con: 
+
+
+```bash
+minikube delete
+```
+
+## Despliegue de los servicios  
+
+Una vez que Kubernetes se encuentre desplegado correctamente y todos los manifiestos estén ubicados en la carpeta Kompose/, se procede a desplegar todos los servicios:
+
+
+```bash
+kubectl apply -f kompose/
+```
+
+Para verificar la correcta configuración de los servicios —nombre, tipo y puerto— se puede ejecutar el siguiente comando:
+
+```bash
+kubectl get services -A
+```
+
+La salida del comando permite corroborar que los puertos publicados coinciden con los declarados y que la totalidad de los servicios está configurada con el tipo **NodePort**, lo cual garantiza su exposición externa desde el clúster de Kubernetes.
+
+<div align="center">
+  <img src="images/get_services.png" alt="streamlit" width="600"/>
+</div>
+
+Finalmente, se comprueba que todos los servicios expuestos estén en ejecución y funcionando correctamente.
+
+```bash
+kubectl get pods
+```
+ 
+ <div align="center">
+  <img src="images/get_pods.png" alt="streamlit" width="600"/>
+</div>
+ 
+En caso de requerirse, se pueden eliminar los servicios desplegados:
+ 
+```bash
+kubectl delete -f kompose/
+```
+
+
+# Borrar
 
 
 
@@ -176,60 +294,5 @@ https://github.com/kubernetes/kompose/releases
 
 copiarlo en una ruta de sistema y agregarlo en las variables del sistema como una variable nueva e incluirla en el path 
 
-4. convertir el docker-compose 
-
-kompose -f docker-compose-kubernete.yaml convert -o kompose/
 
 
-4.1. se realiza configuración de los service para garantizar los puertos del kubernete (deben estar entre 30000 – 32767)
-
-
-fast-api        8989  ->   30898
-grafana         3000  ->   30300
-jupyter         8888  ->   30888   
-locust          8089  ->   30808
-minio           9000  ->   30900
-                9001  ->   30901
-mlflow          5000  ->   30500
-mlops-postgres  5432  ->   30543
-prometheus      9090  ->   30909
-streamlit       8501  ->   30850
-
-
-5. Iniciar el minikube 
-
-minikube start
-
-6. despliegue de todos los kompose
-
-kubectl apply -f kompose/
-
-
-
-7. para obsercar los servicios
-
-kubectl get services -A
-
-8. verificar la ip del kubernete 
-minikube ip
-
-192.168.49.2:32386
-
-
-192.168.49.2:30158
-
-9. ver si todos los servicios se encuentrar runnig 
-kubectl get pods
-
-
-
-
-
-
-
-
-en caso de fallas, todo se puede eliminar con: 
-kubectl delete -f kompose/
-
-eliminar todo el cluster por completo: 
-minikube delete
