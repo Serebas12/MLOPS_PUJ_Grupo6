@@ -3,26 +3,20 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import os
 import pandas as pd
-import mlflow.sklearn
+import mlflow
+from mlflow.tracking import MlflowClient
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 import psycopg2
 import pytz
 from datetime import datetime
 
-# Inicia la aplicación
 app = FastAPI(
     title="Predictor API – ML Model Serving: Diabetes Readmission",
     description="Realizar predicciones usando el modelo más reciente en stage Production",
     version="1.0.0"
 )
 
-# Cargo el pipeline completo en memoria
-model = mlflow.sklearn.load_model("models:/DiabetesReadmissionModel/Production")
-
-# Métrica Prometheus
 REQUEST_COUNT = Counter('predict_requests_total', 'Total de peticiones de predicción')
-
-# Cadena de conexión (presupone que POSTGRES_URI está definido en env)
 POSTGRES_URI = os.getenv("POSTGRES_URI")
 
 
@@ -82,14 +76,12 @@ class PatientData(BaseModel):
         orm_mode = True
 
 
-def log_to_db(data: PatientData, prediction: str):
-    """Inserta en raw_data.patient_predictions (sin readmitted)"""
+def log_to_db(data: PatientData, prediction: str, model_version: str):
+    """Inserta en raw_data.patient_predictions (sin la columna readmitted)"""
     conn = cur = None
     try:
         conn = psycopg2.connect(POSTGRES_URI)
         cur = conn.cursor()
-
-        # Creo tabla plana si no existe
         cur.execute("""
             CREATE TABLE IF NOT EXISTS raw_data.patient_predictions (
                 encounter_id                INT,
@@ -115,7 +107,7 @@ def log_to_db(data: PatientData, prediction: str):
                 diag_3                      TEXT,
                 number_diagnoses            INT,
                 max_glu_serum               TEXT,
-                A1Cresult                   TEXT,
+                a1cresult                   TEXT,
                 metformin                   TEXT,
                 repaglinide                 TEXT,
                 nateglinide                 TEXT,
@@ -140,19 +132,17 @@ def log_to_db(data: PatientData, prediction: str):
                 metformin_rosiglitazone     TEXT,
                 metformin_pioglitazone      TEXT,
                 change                      TEXT,
-                diabetesMed                 TEXT,
+                diabetesmed                 TEXT,
                 prediction                  TEXT,
                 model_version               TEXT,
                 executed_at                 TIMESTAMPTZ
             );
         """)
-
-        # Preparo columnas y valores
         payload = data.dict(by_alias=False)
         cols = list(payload.keys()) + ["prediction", "model_version", "executed_at"]
         vals = list(payload.values()) + [
             prediction,
-            "Production",
+            model_version,
             datetime.now(pytz.timezone("America/Bogota"))
         ]
         ph = ", ".join(["%s"] * len(vals))
@@ -161,7 +151,6 @@ def log_to_db(data: PatientData, prediction: str):
             vals
         )
         conn.commit()
-
     except Exception as e:
         print(f"[log_to_db] Error al insertar: {e}")
     finally:
@@ -174,24 +163,40 @@ def log_to_db(data: PatientData, prediction: str):
 async def predict(input_data: PatientData, bg: BackgroundTasks):
     REQUEST_COUNT.inc()
 
-    # 1) Construyo DataFrame
+    # 1) Armar DataFrame
     try:
         payload = input_data.dict(by_alias=False)
         df = pd.DataFrame([payload])
     except Exception as e:
         return {"error": f"Error construyendo DataFrame: {e}"}
 
-    # 2) Predicción con todo el pipeline
+    # 2) Obtener versión en producción y cargar modelo
     try:
-        resultado = model.predict(df)[0]
+        client = MlflowClient(tracking_uri="http://mlflow:5000")
+        prod_versions = client.get_latest_versions("DiabetesReadmissionModel", stages=["Production"])
+        if not prod_versions:
+            return {"error": "No hay modelo en stage Production"}
+        model_version = str(prod_versions[0].version)
+        model_uri = f"models:/DiabetesReadmissionModel/Production"
+        pyfunc_model = mlflow.pyfunc.load_model(model_uri)
+    except Exception as e:
+        return {"error": f"Error cargando modelo: {e}"}
+
+    # 3) Predecir
+    try:
+        resultado = pyfunc_model.predict(df)[0]
     except Exception as e:
         return {"error": f"Error en predicción: {e}"}
 
-    # 3) Log en background si no es prueba
+    # 4) Log en background si no es prueba
     if input_data.encounter_id != 0:
-        bg.add_task(log_to_db, input_data, str(resultado))
+        bg.add_task(log_to_db, input_data, str(resultado), model_version)
 
-    return {"prediction": resultado}
+    return {
+        "prediction": resultado 
+        #"model_uri": model_uri,
+        #"model_version": model_version
+    }
 
 
 @app.get("/metrics")

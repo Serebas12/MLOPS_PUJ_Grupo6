@@ -144,7 +144,7 @@ def train_and_register():
 with DAG(
     'model_training_pipeline_backup',
     default_args=default_args,
-    schedule_interval='@weekly',
+    schedule_interval='@once',
     catchup=False,
     tags=['training'],
 ) as dag:

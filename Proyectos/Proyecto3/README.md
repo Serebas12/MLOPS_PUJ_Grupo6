@@ -9,6 +9,7 @@ Iniciamos con el proceso arrancando el todos los servicios en docker compose con
 ```bash 
 sudo docker compose -f docker-compose-resto.yaml up --build -d
 sudo docker compose -f docker-compose-resto.yaml up fast_api --build -d
+sudo docker compose -f docker-compose-resto.yaml up locust --build -d
 ```
 
 ```bash
