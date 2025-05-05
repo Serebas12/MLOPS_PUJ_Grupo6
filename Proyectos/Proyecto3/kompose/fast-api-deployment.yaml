@@ -23,7 +23,16 @@ spec:
         io.kompose.service: fast-api
     spec:
       containers:
-        - image: sebs1996/fastapi-mlops-p3:latest
+        - env:
+            - name: AWS_ACCESS_KEY_ID
+              value: admin
+            - name: AWS_SECRET_ACCESS_KEY
+              value: supersecret
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: http://minio:9000
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow:5000
+          image: sebs1996/fastapi-mlops-p3:latest
           name: fast-api
           ports:
             - containerPort: 8989

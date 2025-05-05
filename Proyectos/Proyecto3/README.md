@@ -115,9 +115,6 @@ docker compose -f docker-compose-kubernete.yaml up --build -d
 
 
 
-docker compose -f docker-compose-resto.yaml up fast-api --build -d
-
-
 
 
 # Kubernetes 
