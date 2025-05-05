@@ -37,7 +37,7 @@ default_args = {
 
 def train_and_register():
     # —————— 0) Configurar S3 / MinIO ——————
-    S3_ENDPOINT = "http://192.168.49.2:30900"
+    S3_ENDPOINT = "http://localhost:9000"
     S3_BUCKET   = "mlflows3"
     AWS_KEY     = "admin"
     AWS_SECRET  = "supersecret"
@@ -120,7 +120,7 @@ def train_and_register():
     y_grid = pd.concat([y_train, y_valid])
 
     # —————— 8) Registrar todas las pruebas con autolog ——————
-    mlflow.set_tracking_uri('http://192.168.49.2:30500')
+    mlflow.set_tracking_uri('http://localhost:5000')
     mlflow.set_experiment('Diabetes_Readmission_Exp')
     with mlflow.start_run(run_name="random_search", nested=False):
         mlflow.sklearn.autolog()
