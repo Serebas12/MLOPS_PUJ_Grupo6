@@ -1,16 +1,12 @@
-import os 
+import os
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 import pandas as pd
 import numpy as np
-
-# >>> Nuevos imports para S3 / MinIO
 import boto3
 from botocore.client import Config
-# <<<
-
 import mlflow
 import mlflow.sklearn
 from sklearn.pipeline import Pipeline
@@ -22,11 +18,11 @@ from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
-# Hiperparámetros para GridSearch
+# Hiperparámetros para RandomizedSearchCV
 param_grid = {
-  "classifier__n_estimators": [10, 50],
-  "classifier__max_depth": [5, 12],
-  "classifier__min_samples_split": [2, 10]
+    "classifier__n_estimators": [10, 50],
+    "classifier__max_depth": [5, 12],
+    "classifier__min_samples_split": [2, 10]
 }
 
 # Número de características a seleccionar con SelectKBest
@@ -39,7 +35,6 @@ default_args = {
     'retry_delay': timedelta(minutes=10),
 }
 
-#   modeling
 def train_and_register():
     # —————— 0) Configurar S3 / MinIO ——————
     S3_ENDPOINT = "http://minio:9000"
@@ -74,18 +69,18 @@ def train_and_register():
     conn.close()
 
     # 2) Separar splits
-    df_train = df[df['split']=='train']
-    df_valid = df[df['split']=='valid']
-    df_test  = df[df['split']=='test']
+    df_train = df[df['split'] == 'train']
+    df_valid = df[df['split'] == 'valid']
+    df_test  = df[df['split'] == 'test']
 
     # 3) Definir X/y
-    drop_cols = ['encounter_id','readmitted','split','load_date','processed_date']
+    drop_cols = ['encounter_id', 'readmitted', 'split', 'load_date', 'processed_date']
     X_train, y_train = df_train.drop(columns=drop_cols), df_train['readmitted']
     X_valid, y_valid = df_valid.drop(columns=drop_cols), df_valid['readmitted']
     X_test,  y_test  = df_test.drop(columns=drop_cols),  df_test['readmitted']
 
-    # 4) Columnas num y categóricas
-    num_cols = X_train.select_dtypes(include=['int64','float64']).columns.tolist()
+    # 4) Columnas numéricas y categóricas
+    num_cols = X_train.select_dtypes(include=['int64', 'float64']).columns.tolist()
     cat_cols = X_train.select_dtypes(include=['object']).columns.tolist()
 
     # 5) Preprocesamiento
@@ -114,47 +109,46 @@ def train_and_register():
     grid_search = RandomizedSearchCV(
         estimator=pipeline,
         param_distributions=param_grid,
-        n_iter=30,
+        n_iter=10,
         cv=2,
         scoring="accuracy",
         n_jobs=1,
         verbose=2,
-        random_state=42
+        random_state=42  ## si queremos hiperparámetros más aleatorios comentamos esta entrada
     )
     X_grid = pd.concat([X_train, X_valid])
     y_grid = pd.concat([y_train, y_valid])
-    grid_search.fit(X_grid, y_grid)
-    best_model  = grid_search.best_estimator_
-    best_params = grid_search.best_params_
 
-    # 8) Evaluación en test
-    preds = best_model.predict(X_test)
-    proba = best_model.predict_proba(X_test)
-    metrics = {
-       'test_accuracy' : accuracy_score(y_test, preds),
-       'test_precision': precision_score(y_test, preds, average='weighted'),
-       'test_recall'   : recall_score(y_test, preds, average='weighted'),
-       'test_f1'       : f1_score(y_test, preds, average='weighted'),
-       'test_auc'      : roc_auc_score(
-                             y_test,
-                             proba,
-                             multi_class='ovr',
-                             average='weighted'
-                         )
-    }
-
-    # 9) MLflow logging
+    # —————— 8) Registrar todas las pruebas con autolog ——————
     mlflow.set_tracking_uri('http://mlflow:5000')
     mlflow.set_experiment('Diabetes_Readmission_Exp')
-    with mlflow.start_run():
+    with mlflow.start_run(run_name="random_search", nested=False):
+        mlflow.sklearn.autolog()
+        grid_search.fit(X_grid, y_grid)
+    # ——————————————————————————————————————————————
+
+    # 9) Extraer el mejor modelo y sus métricas
+    best_model  = grid_search.best_estimator_
+    best_params = grid_search.best_params_
+    preds       = best_model.predict(X_test)
+    proba       = best_model.predict_proba(X_test)
+    metrics = {
+        'test_accuracy' : accuracy_score(y_test, preds),
+        'test_precision': precision_score(y_test, preds, average='weighted'),
+        'test_recall'   : recall_score(y_test, preds, average='weighted'),
+        'test_f1'       : f1_score(y_test, preds, average='weighted'),
+        'test_auc'      : roc_auc_score(y_test, proba, multi_class='ovr', average='weighted')
+    }
+
+    # 10) Registrar y promover sólo el mejor modelo
+    with mlflow.start_run(run_name="register_best", nested=False):
         mlflow.log_params(best_params)
         mlflow.log_metrics(metrics)
         mlflow.sklearn.log_model(best_model, artifact_path='model')
         run_id    = mlflow.active_run().info.run_id
         model_uri = f"runs:/{run_id}/model"
         mv = mlflow.register_model(model_uri, 'DiabetesReadmissionModel')
-    
-    # 10) Promover a Production
+
     client = mlflow.tracking.MlflowClient()
     client.transition_model_version_stage(
         name='DiabetesReadmissionModel',
@@ -166,7 +160,7 @@ def train_and_register():
 with DAG(
     'model_training_pipeline',
     default_args=default_args,
-    schedule_interval='@weekly',
+    schedule_interval='@once',
     catchup=False,
     tags=['training'],
 ) as dag:
