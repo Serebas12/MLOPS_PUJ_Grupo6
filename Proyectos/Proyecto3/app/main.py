@@ -191,7 +191,11 @@ async def predict(input_data: PatientData, bg: BackgroundTasks):
     if input_data.encounter_id != 0:
         bg.add_task(log_to_db, input_data, str(resultado), model_version)
 
-    return {"prediction": resultado, "model_version": model_version}
+    return {
+        "prediction": resultado 
+        #"model_uri": model_uri,
+        #"model_version": model_version
+    }
 
 
 @app.get("/metrics")
