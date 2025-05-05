@@ -73,6 +73,11 @@ services:
   fast-api:
     image: sebs1996/fastapi-mlops-p3:latest
     container_name: fast-api
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=supersecret
     ports:
       - "8989:8989"
     labels:

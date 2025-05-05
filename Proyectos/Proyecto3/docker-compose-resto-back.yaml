@@ -64,7 +64,7 @@ services:
     restart: always
 
   # 4) API de inferencia (FastAPI) — expone /metrics para Prometheus
-  fast_api:
+  fast-api:
     build: ./app
     container_name: api_models
     environment:
