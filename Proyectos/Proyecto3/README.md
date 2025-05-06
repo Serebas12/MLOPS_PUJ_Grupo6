@@ -295,3 +295,4 @@ copiarlo en una ruta de sistema y agregarlo en las variables del sistema como un
 
 
 
+docker exec -it proyecto3-airflow-worker-1 curl http://192.168.49.2:30900

@@ -1,7 +1,8 @@
+version: '3.8'
+
 x-airflow-common:
   &airflow-common
-  image: apache/airflow:2.6.0
-  build: ./airflow
+  image: custom-airflow:latest
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -142,7 +143,7 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
-    user: "0:0"
+    user: "50000:0"
     network_mode: "host"
     networks: []
 
