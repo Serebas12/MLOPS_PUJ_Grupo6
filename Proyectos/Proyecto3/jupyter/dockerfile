@@ -1,0 +1,28 @@
+# Usa una imagen oficial de Python como base
+FROM python:3.9-slim
+
+# Establece el directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Copia el requirements.txt al contenedor
+COPY requirements.txt .
+
+# Actualiza e instala utilidades necesarias
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instala las dependencias del requirements
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
+
+# Instala Jupyter Notebook si no está en el requirements
+# (esto es opcional por si no lo pones en tu requirements.txt)
+RUN pip install notebook
+
+# Exponer el puerto de Jupyter
+EXPOSE 8888
+
+# Comando para lanzar Jupyter Notebook
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]

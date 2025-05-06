@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: C:\Program Files\Kompose\kompose.exe -f docker-compose-kubernete.yaml convert -o kompose/
+    kompose.service.type: nodeport
+    kompose.version: 1.35.0 (9532ceef3)
+  labels:
+    io.kompose.service: minio
+  name: minio
+spec:
+  ports:
+    - name: "9000"
+      port: 9000
+      targetPort: 9000
+      nodePort: 30900
+    - name: "9001"
+      port: 9001
+      targetPort: 9001
+      nodePort: 30901
+  selector:
+    io.kompose.service: minio
+  type: NodePort

@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # 1) Almacenamiento único Postgres (raw_data, clean_data y metadata de MLflow)
+  mlops-postgres:
+    image: postgres:13
+    container_name: mlops-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5432:5432"  
+    labels:
+      kompose.service.type: nodeport
+    volumes:
+      - postgres_mlflow:/var/lib/postgresql/data
+    networks:
+      - airflow_backend
+    restart: always
+
+
+  # 2) Artefactos de MLflow (S3 compatible)
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: supersecret
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Consola web
+    labels:
+      kompose.service.type: nodeport
+    volumes:
+      - minio_data:/data
+    networks:
+      - airflow_backend
+    restart: always
+
+
+  # 3) Servidor MLflow apuntando al mismo Postgres
+  mlflow:
+    image: sebs1996/mlflow-mlops-p3:latest
+    container_name: mlflow
+    environment:
+    # no reconoce en las variables de entorno backend_store_uri y artifact_root, dejar quemados en el arranque de mlflow
+      BACKEND_STORE_URI: postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
+      ARTIFACT_ROOT: s3://mlflows3/artifacts
+      #AWS_S3_ADDRESSING_STYLE: path
+      #AWS_S3_SIGNATURE_VERSION: s3v4
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: supersecret
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    command: >
+      mlflow server
+        --backend-store-uri postgresql+psycopg2://airflow:airflow@mlops-postgres:5432/airflow
+        --default-artifact-root s3://mlflows3/artifacts
+        --host 0.0.0.0 --port 5000
+    ports:
+      - "5000:5000"
+    labels:
+      kompose.service.type: nodeport      
+    depends_on:
+      - mlops-postgres
+      - minio
+    networks:
+      - airflow_backend
+    restart: always
+
+  # 4) API de inferencia (FastAPI) — expone /metrics para Prometheus
+  fast-api:
+    image: sebs1996/fastapi-mlops-p3:latest
+    container_name: fast-api
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=supersecret
+    ports:
+      - "8989:8989"
+    labels:
+      kompose.service.type: nodeport
+    networks:
+      - airflow_backend  
+
+  # 5) UI de inferencia (Streamlit)
+  streamlit:
+    image: sebs1996/streamlit-mlops-p3:latest
+    container_name: streamlit
+    ports:
+      - "8501:8501"
+    labels:
+      kompose.service.type: nodeport
+    networks:
+      - airflow_backend
+    restart: always
+
+  # 6) Observabilidad: Prometheus
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    labels:
+      kompose.service.type: nodeport
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - airflow_backend
+    restart: always
+
+  # 7) Observabilidad: Grafana
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    labels:
+      kompose.service.type: nodeport
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - airflow_backend
+
+  # 8) Locust
+  locust:
+    image: sebs1996/locust-mlops-p3:latest 
+    container_name: locust
+    ports:
+      - "8089:8089"
+    labels:
+      kompose.service.type: nodeport
+    environment:
+      - LOCUST_HOST=http://inference:8989
+    networks:
+      - airflow_backend
+    restart: always
+
+  # 9) Jupyter
+  jupyter:
+    image: sebs1996/jupyter-mlops-p3:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    labels:
+      kompose.service.type: nodeport
+    volumes:
+      - ./jupyter:/app
+    networks:
+      - airflow_backend
+
+volumes:
+  postgres_mlflow:
+  minio_data:
+
+networks:
+  airflow_backend:
+    external: true
+    name: airflow_backend
+

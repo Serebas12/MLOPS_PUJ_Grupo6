@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: C:\Program Files\Kompose\kompose.exe -f docker-compose-kubernete.yaml convert -o kompose/
+    kompose.service.type: nodeport
+    kompose.version: 1.35.0 (9532ceef3)
+  labels:
+    io.kompose.service: locust
+  name: locust
+spec:
+  ports:
+    - name: "8089"
+      port: 8089
+      targetPort: 8089
+      nodePort: 30808
+  selector:
+    io.kompose.service: locust
+  type: NodePort
