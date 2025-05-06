@@ -154,6 +154,14 @@ docker build -t sebs1996/locust-mlops-p3:latest ./locust
 docker push sebs1996/locust-mlops-p3:latest
 ```
 
+- **airflow**
+```bash
+docker build -t sebs1996/airflow-mlops-p3:latest ./airflow
+docker push sebs1996/airflow-mlops-p3:latest
+```
+
+
+
 ## Configuración NodePort
 Para permitir la comunicación externa con los servicios expuestos en el clúster de Kubernetes, es necesario configurar el type del servicio como NodePort. Esto se hace en el docker-compose.yaml, añadiendo una etiqueta en la sección labels con el valor kompose.service.type: nodeport para cada servicio. A continuación se muestra un ejemplo para el servicio de FastAPI:
 
