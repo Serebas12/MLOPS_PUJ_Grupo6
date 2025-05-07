@@ -276,31 +276,47 @@ kubectl delete -f kompose/
 ```
 
 
-# Borrar
+# Monitoreo
+
+## Generación de tráfico para pruebas de rendimiento
+
+Una vez desplegados todos los servicios del **clúster de Kubernetes** y confirmada la correcta ejecución de **Airflow**, se requiere generar tráfico de consultas para exponer métricas en **Prometheus** y evaluar el desempeño de la plataforma.
+
+Disponemos de dos rutas para crear dicha carga:
+
+1. **Streamlit** – práctico para pruebas manuales o demostraciones interactivas.  
+2. **Locust** – ideal cuando se necesita un flujo constante y automatizado de peticiones.
+
+En este entorno se optó por **Locust**, configurándolo para emular **2 usuarios** que realizan **1 solicitud por segundo** al servicio **FastAPI** expuesto dentro del clúster.
 
 
-
-Para el despliegeue del kubernete:
-
-1. Instalación de Chocolatey 
-
-Set-ExecutionPolicy Bypass -Scope Process -Force; `
-[System.Net.ServicePointManager]::SecurityProtocol = `
-[System.Net.ServicePointManager]::SecurityProtocol -bor 3072; `
-iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+<div align="center">
+  <img src="images/locust.png" alt="streamlit" width="800"/>
+</div>
+ 
 
 
-2. Instalación de minikube
+## Visualización en Grafana
 
-choco install minikube
+Con el tráfico de prueba ejecutándose, **Prometheus** recoge las métricas expuestas por **FastAPI** a través del endpoint `/metrics`. Al registrar Prometheus como fuente de datos en **Grafana**, estas métricas quedan disponibles para su análisis y se habilita la creación del dashboard **Proyecto 3**, donde se monitoriza de forma centralizada el rendimiento de la aplicación y del clúster.
 
-3. instalación de kompose 
-
-descargarlo de forma oficial en la documentación
-https://github.com/kubernetes/kompose/releases
-
-copiarlo en una ruta de sistema y agregarlo en las variables del sistema como una variable nueva e incluirla en el path 
+<div align="center">
+  <img src="images/dashboard.png" alt="streamlit" width="800"/>
+</div>
 
 
+A continuación se describen las métricas incluidas en el dashboard **Proyecto 3**:
 
-docker exec -it proyecto3-airflow-worker-1 curl http://192.168.49.2:30900
+- **Total Requests**  
+  Número acumulado de peticiones recibidas por la API.  
+  Implementado como un contador que se incrementa cada vez que se ejecuta el método `predict` de FastAPI.
+
+- **Uso de memoria**  
+  Métrica generada por defecto en `metrics`.  
+  Mide cuánta memoria RAM está usando el proceso actualmente, expresada en megabytes (MB).
+  Fue generada con la consulta `process_resident_memory_bytes / 1024 / 1024`
+
+- **Uso de CPU**  
+  Métrica generada por defecto en `metrics`.  
+  Calcula el promedio de segundos de CPU usados por segundo en el último minuto.
+  Fue generada con la consulta `rate(process_cpu_seconds_total[1m])`
