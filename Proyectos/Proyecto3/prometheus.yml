@@ -2,6 +2,6 @@ global:
   scrape_interval: 5s
 
 scrape_configs:
-  - job_name: 'fast_api'
+  - job_name: 'fast-api'
     static_configs:
-      - targets: ['fast_api:8989']
+      - targets: ['fast-api:8989']

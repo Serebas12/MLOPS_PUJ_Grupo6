@@ -1,71 +1,70 @@
 import streamlit as st
 import requests
 
-# URL base de tu API (ajustar si estás en local o diferente URL)
-API_URL = "http://localhost:8989"
+API_URL = "http://fast-api:8989"
+DEFAULT_MODEL = "DiabetesReadmissionModel"   
 
-st.title("Proyecto 3")
+st.title("Proyecto 3")
 
-# Paso 1: Obtener la lista de modelos disponibles
-st.header("1. Selección de modelo")
+# ──────────────────────────────
+# Ingreso de datos para predicción
+# ──────────────────────────────
+st.header("Ingreso de datos")
 
-# Inicializar session_state si no existe
-if "modelos" not in st.session_state:
-    response = requests.get(f"{API_URL}/listar_modelos")
-    if response.status_code == 200:
-        st.session_state.modelos = response.json().get("modelos_disponibles", [])
-    else:
-        st.session_state.modelos = []
+numeric_fields = [
+    "encounter_id", "patient_nbr", "admission_type_id", "discharge_disposition_id",
+    "admission_source_id", "time_in_hospital", "num_lab_procedures",
+    "num_procedures", "num_medications", "number_outpatient", "number_emergency",
+    "number_inpatient", "number_diagnoses"
+]
 
-# Botón para actualizar lista de modelos
-if st.button("Actualizar lista de modelos"):
-    response = requests.get(f"{API_URL}/listar_modelos")
-    if response.status_code == 200:
-        st.session_state.modelos = response.json().get("modelos_disponibles", [])
-    else:
-        st.error("No se pudieron listar los modelos disponibles.")
-
-# Mostrar los modelos disponibles con un modelo seleccionado por defecto
-definir_modelo = st.selectbox(
-    "Selecciona un modelo:",
-    options=st.session_state.get("modelos", []),
-    index=0 if st.session_state.get("modelos") else None
-)
-
-# Paso 2: Formulario para predicción
-st.header("2. Ingreso de datos para predicción")
+text_fields = [
+    "race", "gender", "age", "weight", "payer_code", "medical_specialty",
+    "diag_1", "diag_2", "diag_3", "max_glu_serum", "a1cresult", "metformin",
+    "repaglinide", "nateglinide", "chlorpropamide", "glimepiride",
+    "acetohexamide", "glipizide", "glyburide", "tolbutamide", "pioglitazone",
+    "rosiglitazone", "acarbose", "miglitol", "troglitazone", "tolazamide",
+    "examide", "citoglipton", "insulin", "glyburide-metformin",
+    "glipizide-metformin", "glimepiride-pioglitazone",
+    "metformin-rosiglitazone", "metformin-pioglitazone", "change", "diabetesmed"
+]
 
 with st.form("prediction_form"):
-    island = st.selectbox("Isla", options=["Biscoe", "Dream", "Torgersen"])
-    sex = st.selectbox("Sexo", options=["MALE", "FEMALE"])
-    culmen_length_mm = st.number_input("Longitud del culmen (mm)", min_value=0.0)
-    culmen_depth_mm = st.number_input("Profundidad del culmen (mm)", min_value=0.0)
-    flipper_length_mm = st.number_input("Longitud de la aleta (mm)", min_value=0.0)
-    body_mass_g = st.number_input("Masa corporal (g)", min_value=0.0)
-    
+    numeric_values = {}
+    text_values = {}
+
+    # Campos numéricos (2 por fila)
+    for i in range(0, len(numeric_fields), 2):
+        c1, c2 = st.columns(2)
+        for col, field in zip((c1, c2), numeric_fields[i:i+2]):
+            numeric_values[field] = col.number_input(
+                field.replace("_", " ").title(), min_value=0, value=0, step=1
+            )
+
+    # Campos de texto (2 por fila)
+    for i in range(0, len(text_fields), 2):
+        c1, c2 = st.columns(2)
+        for col, field in zip((c1, c2), text_fields[i:i+2]):
+            text_values[field] = col.text_input(
+                field.replace("_", " ").title(), value=""
+            )
+
     submit_button = st.form_submit_button("Realizar predicción")
 
-# Al enviar el formulario
+# ──────────────────────────────
+# Enviar y mostrar resultado
+# ──────────────────────────────
 if submit_button:
-    if not definir_modelo:
-        st.error("Por favor selecciona un modelo antes de predecir.")
+    payload = {
+        **numeric_values,
+        **text_values,
+        "model": DEFAULT_MODEL           
+    }
+
+    r = requests.post(f"{API_URL}/predict", json=payload)
+
+    if r.status_code == 200:
+        prediction = r.json().get("prediction", "Sin resultado")
+        st.success(f"Predicción: {prediction}")
     else:
-        # Construimos el payload
-        payload = {
-            "island": island,
-            "sex": sex,
-            "culmen_length_mm": culmen_length_mm,
-            "culmen_depth_mm": culmen_depth_mm,
-            "flipper_length_mm": flipper_length_mm,
-            "body_mass_g": body_mass_g,
-            "model": definir_modelo
-        }
-
-        # Llamamos al API de predicción
-        response = requests.post(f"{API_URL}/predict", json=payload)
-
-        if response.status_code == 200:
-            prediction = response.json().get("prediction", "Sin resultado")
-            st.success(f"Predicción: {prediction}")
-        else:
-            st.error("Error al realizar la predicción.")
+        st.error("Error al realizar la predicción.")

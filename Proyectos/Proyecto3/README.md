@@ -129,7 +129,7 @@ El primer comando (airflow-init) prepara la base de datos y las configuraciones 
 Una vez Airflow está en ejecución, procedemos a levantar todos los servicios adicionales definidos para el entorno MLOps (MLflow, Prometheus, Grafana, FastAPI, Streamlit, etc.) con:
 
 ```bash
-sudo docker compose -f docker-compose-kubernete.yaml up --build -d
+sudo docker compose -f docker-compose-resto-back.yaml up --build -d
 ```
 
 Esto asegura que todos los servicios estén disponibles y accesibles dentro de la red Docker.
@@ -150,7 +150,7 @@ En caso de necesitar apagar o reconstruir los servicios, usamos los siguientes c
 
 ```bash
 sudo docker compose -f docker-compose-airflow.yaml down --rmi all -v        # Para bajar airflow
-sudo docker compose -f docker-compose-kubernete.yaml down --rmi all -v      # Para bajar servicios complementarios
+sudo docker compose -f docker-compose-resto-back.yaml down --rmi all -v      # Para bajar servicios complementarios
 sudo docker compose -f docker-compose-jupyter.yaml down --rmi all -v        # Para bajar jupyterlab
 ```
 
@@ -173,80 +173,291 @@ http://localhost:8888       # jupyter
 Es importante comprobar que al acceder a cada uno de estos endpoints, los servicios levantan sus respectivas interfaces y que no presentan errores de conexión, tiempo de espera o conflictos de puerto. Este paso asegura que la arquitectura montada en Docker funciona como se espera antes de avanzar al despliegue en Kubernetes.
 
 
-Estando dentro del endpoint de minio, creamos un bucket llamado mlflows3, donde se almacenara los artefactos correspondientes a los modelos entrenados a traves de airflow 
+###         Ejecución de los pipelines y validación de la arquitectura  
+
+Una vez verificado que los servicios están correctamente expuestos, continuamos con la configuración inicial de los componentes internos para asegurar que toda la arquitectura está funcionando de manera integrada.
+
+Primero, ingresamos al endpoint de MinIO (http://localhost:9001) y creamos un bucket llamado `mlflows3`. Este bucket será utilizado como almacenamiento de artefactos por MLflow, permitiendo guardar los modelos entrenados y sus recursos asociados.
+
+A continuación, accedemos al panel de Airflow (http://localhost:8080) para iniciar manualmente la ejecución de los DAGs encargados de orquestar el flujo de datos y modelos. Para este proceso inicial, simplemente activamos los DAGs haciendo clic en el interruptor correspondiente en la interfaz, asegurándonos de que cada ejecución finalice de manera exitosa antes de pasar al siguiente.
+
+Los DAGs que deben ejecutarse en este orden son:
+
+- raw_data_initial_batch_load: Carga inicial de los datos crudos en la base de datos, y la marcación de train, valid y test
+
+- clean_data_pipeline: Limpieza de los datos cargados.
+
+- model_training_pipeline: Generación del pipeline de los datos, selección de variables, entrenamiento y registro del mejor entrenamiento.
+
+Al completar la ejecución de estos tres DAGs, habremos preparado el flujo inicial: los datos han sido procesados, el modelo entrenado ha sido registrado en MLflow y sus artefactos almacenados en MinIO.
+
+Posteriormente, validamos el consumo del modelo accediendo al endpoint de FastAPI (http://localhost:8989), enviando una solicitud de inferencia y comprobando que efectivamente la API está utilizando el modelo registrado como Production en MLflow.
+
+Finalmente, procedemos a validar la integración de Locust con la API de FastAPI, asegurándonos de que las pruebas de carga se ejecuten correctamente sobre el endpoint de inferencia. En paralelo, verificamos que Prometheus y Grafana están conectados y recolectando métricas en tiempo real, lo cual nos permitirá monitorear el rendimiento y el estado de la API dentro del ecosistema desplegado en Docker.
+
+Con estos pasos completados, confirmamos que los servicios están correctamente interconectados, funcionales y listos para su transición al despliegue sobre Kubernetes.
 
 
+##          Segunda Fase (Despliegue por Kubernetes)
+
+Para esta fase del proyecto, y considerando la complejidad que implica desplegar Airflow completamente sobre Kubernetes, se tomó la decisión de mantener el despliegue de Airflow y su base de datos asociado (PostgreSQL) mediante Docker.
+
+Esta elección se debe a que Airflow no permite, de manera sencilla y sin configuraciones adicionales avanzadas, conectarse a una base de datos externa de PostgreSQL (la misma que utilizamos para almacenar tanto los datos raw como clean). Por este motivo, optamos por mantener la base de datos y Airflow dentro del mismo entorno de Docker, asegurando la compatibilidad y simplificando la gestión de conexiones y persistencia de datos en esta etapa.
+
+El resto de los servicios de la arquitectura —incluyendo FastAPI, MLflow, Streamlit, Locust, Prometheus, Grafana y MinIO— se migraron a Kubernetes mediante la elaboración de los manifiestos necesarios. Para facilitar esta transición y acelerar el proceso, utilizamos la herramienta Kompose para convertir los archivos docker-compose en manifiestos compatibles con Kubernetes.
+
+De esta manera, logramos un entorno híbrido, donde Airflow continúa funcionando en Docker, mientras que el resto de los componentes opera sobre Kubernetes, manteniendo la interoperabilidad entre ambos entornos mediante redes y endpoints expuestos.
 
 
+###         Construcción de imágenes
 
+Un requisito previo indispensable para la implementación en Kubernetes es que todas las imágenes de los servicios estén previamente construidas y publicadas en un repositorio accesible, en este caso Docker Hub.
 
-```bash 
+El proceso seguido fue:
 
+1.  Construcción local de las imágenes usando los Dockerfile correspondientes.
+
+2.  Publicación (push) de las imágenes en Docker Hub bajo el usuario sebs1996.
+
+3.  Actualización de los manifiestos de Kubernetes para referenciar las imágenes remotas en lugar de las construcciones locales.
+
+Los comandos utilizados para cada servicio fueron los siguientes:
+
+-   **fast-api**
+```bash
+docker build -t sebs1996/fastapi-mlops-p3:latest ./app
+docker push sebs1996/fastapi-mlops-p3:latest
+```
+
+-   **mlflow**
+```bash
+docker build -t sebs1996/mlflow-mlops-p3:latest ./mlflow
+docker push sebs1996/mlflow-mlops-p3:latest
 ```
 
 
-docker compose -f docker-compose-airflow.yaml exec airflow-scheduler ls -l /opt/airflow/dags
-
-
-```bash 
-sudo docker compose -f docker-compose-jupyter.yaml up --build -d
+-   **jupyter**
+```bash
+docker build -t sebs1996/jupyter-mlops-p3:latest ./jupyter
+docker push sebs1996/jupyter-mlops-p3:latest
 ```
+
+-   **streamlit**
+```bash
+docker build -t sebs1996/streamlit-mlops-p3:latest ./streamlit
+docker push sebs1996/streamlit-mlops-p3:latest
+```
+
+-   **locust**
+```bash
+docker build -t sebs1996/locust-mlops-p3:latest ./locust
+docker push sebs1996/locust-mlops-p3:latest
+```
+
+-   **airflow**
+```bash
+docker build -t sebs1996/airflow-mlops-p3:latest ./airflow
+docker push sebs1996/airflow-mlops-p3:latest
+```
+
+**Nota:** Aunque construimos y publicamos la imagen de Airflow para fines de versionamiento y control, su despliegue operativo final permanece ejecutándose en Docker y no dentro del clúster de Kubernetes.
+
+
+###         Configuración de NodePort
+
+Para permitir la comunicación externa con los servicios expuestos en el clúster de Kubernetes, es necesario configurar los servicios como NodePort. Esto asegura que los puertos estén accesibles desde fuera del clúster a través de la IP del nodo.
+
+Esta configuración se realiza desde el archivo docker-compose, agregando una etiqueta dentro de labels con el valor kompose.service.type: nodeport en cada servicio que se desee exponer externamente.
+
+A continuación, se muestra un ejemplo de esta configuración aplicada al servicio FastAPI:
+
+<div align="center"> <img src="images/node_port.png" alt="nodeport" width="300"/> </div>
+
+
+###         Generación de manifiestos con Kompose.
+
+Luego de verificar el correcto funcionamiento de la arquitectura en Docker, se procede a generar los manifiestos necesarios para el despliegue en Kubernetes. Este paso convierte las definiciones de docker-compose en archivos YAML compatibles con Kubernetes, utilizando la herramienta Kompose.
+
+Los manifiestos generados se almacenan en la carpeta /kompose del repositorio:
 
 ```bash
-sudo docker compose -f docker-compose-jupyter.yaml down --rmi all -v
+kompose -f docker-compose-kubernete.yaml convert -o kompose/
 ```
+
+De esta forma, cada servicio, volumen y red definidos en Docker Compose se traduce a sus equivalentes en Kubernetes, permitiendo replicar la arquitectura en el clúster.
+
+
+###         Configuración de volúmenes y archivos locales
+
+En Kubernetes, la gestión de volúmenes y archivos de configuración difiere de Docker. Es necesario convertir archivos locales en manifiestos que representen recursos de Kubernetes.
+
+Un ejemplo clave es la configuración de **Prometheus**. El archivo prometheus.yml, utilizado por Prometheus para definir sus jobs y targets, debe transformarse en un ConfigMap que **Kubernetes** pueda montar en el contenedor. Esto se logra con el siguiente comando:
 
 ```bash
-
+kubectl create configmap prometheus-config --from-file=prometheus.yml=.\prometheus.yml --dry-run=client -o yaml > prometheus-configmap.yaml
 ```
 
+Este manifiesto *prometheus-configmap.yaml* se ubica en la carpeta /kompose y luego se referencia dentro del manifiesto prometheus-deployment.yaml. Allí se actualiza la sección de volumes y volumeMounts para montar el ConfigMap dentro del contenedor de Prometheus, garantizando que cargue correctamente el archivo de configuración en tiempo de ejecución.
 
-el primer dag en correr por única vez es raw_data_initial_batch_load, este DAG realiza la primer carga de los datos en la tabla de la rawdata, con este procedimiento garantizamos que se carga los datos a la rawdata y esperamos a que termine, sólo se necesita correr una primera vez
+A continuación, se muestra la configuración del despliegue de Prometheus con el volumen montado:
 
-Luego seguimos con el DAG clean_data_pipeline, el cual se encarga de hacer la carga de datos de la rawdata, hace la limpieza de los mismos y los carga, es importante sólo encenderlo después de que finalice raw_data_initial_batch_load, así garantizamos que el flujo de consumo de datos quede activo, adicional, tenemos las columnas load_date y processed_date que son las columnas que nos permiten hacer seguimiento de la carga y flujo de datos en las cargas de datos
-
-
-docker exec -it proyecto3-mlops-postgres-1 bash
-psql -U airflow -d airflow
-psql -U admin -d supersecret
-\dn
-\dt raw_data.*
-SELECT COUNT(*) FROM raw_data.diabetes_raw;
-DROP TABLE raw_data.diabetes_raw;
-SELECT COUNT(*) FROM raw_data.diabetes_clean;
-DROP TABLE raw_data.diabetes_clean;
+<div align="center"> <img src="images/prometheus_deploy.png" alt="prometheus_deploy" width="400"/> </div>
 
 
 
-Luego entramos a minio, y acá creamos el bucket `mlflows3` para que se guarden los objetos del proceso de entrenamiento de modelos del experimento
+###         Configuración de los Puertos 
 
-docker exec -it mlflow bash
-touch test_s3.py
-echo "import os, mlflow
-os.environ['AWS_ACCESS_KEY_ID'] = 'admin'
-os.environ['AWS_SECRET_ACCESS_KEY'] = 'supersecret'
-os.environ['MLFLOW_S3_ENDPOINT_URL'] = 'http://minio:9000'
-mlflow.set_tracking_uri('http://mlflow:5000')
-with mlflow.start_run():
-    with open('/tmp/hello.txt','w') as f: f.write('hola')
-    mlflow.log_artifact('/tmp/hello.txt')
-    print('Artifact URI:', mlflow.get_artifact_uri())
-    print('✅ Artifact logged')
-" > test_s3.py
-python test_s3.py
+Por defecto, cuando se despliega un servicio en Kubernetes utilizando el tipo NodePort, el clúster asigna automáticamente un puerto dentro del rango 30000 – 32767. Sin embargo, dado que estos servicios serán consumidos externamente al clúster, es una buena práctica asignar manualmente un puerto específico para cada servicio. Esto permite estandarizar los accesos, documentar de forma clara las rutas y evitar asignaciones dinámicas que puedan variar entre despliegues.
+
+Para lograr esta configuración, es necesario modificar los manifiestos relacionados a los Service de Kubernetes, especificando explícitamente el valor de nodePort que se desea utilizar. A continuación, se muestra un ejemplo aplicado al manifiesto del servicio FastAPI:
+
+<div align="center"> <img src="images/kubernetes_ports.png" alt="kubernetes_ports" width="600"/> </div>
+
+La siguiente tabla resume los puertos asignados manualmente a cada servicio, indicando el puerto interno del contenedor y el NodePort expuesto por Kubernetes:
+
+| **Servicio**        | **Puerto Contenedor**  | **Puerto Kubernetes**|     
+|---------------------|------------------------|----------------------|                  
+| **fast-api**        | 8989                   | 30898                |
+| **grafan**          | 3000                   | 30300                |               
+| **jupyter**         | 8888                   | 30888                |               
+| **locust**          | 8089                   | 30808                |
+| **minio**           | 9000                   | 30900                |
+|                     | 9001                   | 30901                |
+| **mlflow**          | 5000                   | 30500                |
+| **mlops-postgres**  | 5432                   | 30543                |
+| **prometheus**      | 9090                   | 30909                |
+| **streamlit**       | 8501                   | 30850                |
+
+ Con esta asignación, los servicios pueden ser accedidos de manera consistente a través de la dirección http://<IP_DEL_NODO>:<NodePort> en cualquier entorno donde se despliegue el clúster, facilitando las pruebas, monitoreo y consumo de las aplicaciones.
 
 
 
+###         Inicialización del kubernetes
+
+Para el despliegue local del clúster de Kubernetes se utilizó Minikube como entorno de ejecución. El primer paso consiste en iniciar un nuevo clúster local con el siguiente comando:
+
+```bash
+minikube start
+```
+
+La comunicación entre el clúster y los servicios externos se realiza mediante la IP del nodo de Minikube, la cual puede obtenerse con:
+
+```bash
+minikube ip
+```
+**Nota:** esta dirección IP será necesaria para acceder a los servicios expuestos mediante NodePort.
+
+En caso de ser necesario eliminar el clúster y todos los recursos asociados, se ejecuta:
+
+```bash
+minikube delete
+```
+
+###         Despliegue de los Servicios  
+
+Una vez el clúster de Kubernetes está activo y todos los manifiestos se encuentran ubicados en la carpeta *kompose/*, procedemos a desplegar todos los recursos definidos en los manifiestos con el comando:
+
+```bash
+kubectl apply -f kompose/
+```
+
+Esto aplicará la creación de los **Deployments**, **Services**, **ConfigMaps**, **PersistentVolumeClaims** y demás recursos necesarios para levantar la arquitectura en Kubernetes.
+
+Para verificar que los servicios fueron creados correctamente y que están expuestos con los puertos declarados (usando `NodePort`), ejecutamos:
+
+```bash
+kubectl get services -A
+```
+
+La salida del comando nos permite confirmar:
+-   Los nombres de los servicios.
+-   El tipo de servicio (NodePort).
+-   Los puertos internos y externos configurados.
+
+<div align="center"> <img src="images/get_services.png" alt="get_services" width="600"/> </div>
+
+Posteriormente, validamos que los pods de cada servicio estén en ejecución sin errores, utilizando:
+
+```bash
+kubectl get pods
+```
+
+Esto nos asegura que las imágenes se descargaron correctamente y que los contenedores están corriendo dentro del clúster.
+
+<div align="center"> <img src="images/get_pods.png" alt="get_pods" width="600"/> </div>
+
+-   Todos los pods deben mostrarse con el estado Running y sin reinicios recurrentes (RESTARTS).
+
+En caso de ser necesario eliminar todos los recursos desplegados en el clúster, se puede ejecutar:
+
+```bash
+kubectl delete -f kompose/
+```
+
+##          Monitoreo 
+
+###         Generación de Tráfico para Pruebas de Rendimiento
+
+Una vez desplegados todos los servicios en el clúster de **Kubernetes** y confirmada la correcta ejecución de **Airflow**, es necesario generar tráfico hacia la API de **FastAPI** para activar la recolección de métricas en **Prometheus** y evaluar el desempeño de la plataforma bajo carga.
+
+Existen dos formas principales para generar este tráfico:
+
+**Streamlit** – útil para realizar pruebas manuales o demostraciones interactivas del modelo.
+
+**Locust** – recomendado cuando se busca automatizar el envío de solicitudes y simular usuarios concurrentes de manera controlada.
+
+Para este entorno se optó por Locust, configurándolo para emular **2 usuarios concurrentes**, cada uno realizando **1 solicitud por segundo** al servicio de FastAPI expuesto dentro del clúster de Kubernetes.
+
+<div align="center"> <img src="images/locust.png" alt="locust_dashboard" width="800"/> </div>
+
+Esta simulación permite someter la API a una carga constante, facilitando la recolección de métricas representativas sobre su rendimiento y estabilidad.
 
 
-Usando jupyter podemos examinar los datos cargados dentro del esquema, donde verificamos en los descriptivos la información junto con la documentación de la misma, así mismo, podemos darnos cuenta que el conjunto de datos está supremamente bien documentado, por lo tanto, consideramos que sólo es necesario hacer el trabajo para corregir los carácteres especiales, o valores "faltantes" que nos permita hacer una adecuación del conjunto de datos y cargarlos en el clean data 
-https://archive.ics.uci.edu/dataset/296/diabetes+130-us+hospitals+for+years+1999-2008
+###         Visualización en Grafana
+
+Mientras el tráfico de prueba se encuentra en ejecución, Prometheus recoge automáticamente las métricas expuestas por el servicio FastAPI a través del endpoint /metrics. Posteriormente, Prometheus es configurado como fuente de datos en Grafana, habilitando la creación de dashboards personalizados para monitorear el comportamiento del sistema en tiempo real.
+
+En este caso, se diseñó el dashboard denominado “Proyecto 3”, donde se visualizan las métricas clave del servicio desplegado y del clúster de Kubernetes.
+
+<div align="center"> <img src="images/dashboard.png" alt="grafana_dashboard" width="800"/> </div>
+
+Las principales métricas monitorizadas en el dashboard Proyecto 3 son:
+
+-   **Total Requests**  
+  Número acumulado de peticiones recibidas por la API.  
+  Implementado como un contador que se incrementa cada vez que se ejecuta el método `predict` de FastAPI.
+
+-   **Uso de memoria**  
+  Métrica generada por defecto en `metrics`.  
+  Mide cuánta memoria RAM está usando el proceso actualmente, expresada en megabytes (MB).
+  Fue generada con la consulta `process_resident_memory_bytes / 1024 / 1024`
+
+-   **Uso de CPU**  
+  Métrica generada por defecto en `metrics`.  
+  Calcula el promedio de segundos de CPU usados por segundo en el último minuto.
+  Fue generada con la consulta `rate(process_cpu_seconds_total[1m])`
+
+ Con estas métricas, se logra una visibilidad integral sobre la capacidad de respuesta de la API, permitiendo identificar cuellos de botella, validar la estabilidad del servicio y monitorear el uso de recursos del clúster.
 
 
+##          Anexos  
 
-Notas
+###         Exploración y Análisis de los Datos
 
-para disminuir el consumo de contenedor al mínimo posible para poderlo desplegar en las máquinas, usaremos un solo postgres
+Como parte del proceso de validación y entendimiento de la fuente de datos, se utilizó el entorno de JupyterLab para examinar las tablas cargadas en la base de datos correspondiente al esquema raw_data. Mediante consultas directas y análisis descriptivos, se evaluó la estructura, las variables y los valores presentes en el conjunto de datos.
 
-levantamos streamlit dentro de un contenedor considerando que este paso es fácil de hacer para continuar con la conterinización de los servicios a usar 
+Durante esta etapa de análisis, se constató que el dataset cuenta con una excelente documentación y una codificación clara de las variables, lo que facilita su interpretación y uso en procesos de modelado. La fuente oficial del dataset es la base de datos pública alojada en el repositorio de UCI Machine Learning Repository, disponible en el siguiente enlace:
+
+[Diabetes 130-US hospitals for years 1999-2008](https://archive.ics.uci.edu/dataset/296/diabetes+130-us+hospitals+for+years+1999-2008)
+
+A partir de esta exploración inicial se concluyó que las principales acciones de preprocesamiento necesarias se concentran en:
+
+Corrección de caracteres especiales en algunas columnas.
+
+Tratamiento de valores nulos o faltantes en variables específicas.
+
+Dado que no se identificaron problemas estructurales mayores ni inconsistencias graves, se decidió centrar los esfuerzos de limpieza en estos aspectos, para posteriormente cargar los datos procesados en el esquema clean_data, desde donde se alimentarán los pipelines de entrenamiento de modelos.
+
+**Nota:** La documentación oficial del dataset resultó ser una fuente clave para entender las relaciones entre las variables, los códigos de diagnóstico y los significados de las categorías incluidas.
+
 

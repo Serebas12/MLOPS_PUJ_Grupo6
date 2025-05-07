@@ -158,6 +158,7 @@ def log_to_db(data: PatientData, prediction: str, model_version: str):
         if conn: conn.close()
 
 
+
 @app.post("/predict")
 async def predict(input_data: PatientData, bg: BackgroundTasks):
     REQUEST_COUNT.inc()
