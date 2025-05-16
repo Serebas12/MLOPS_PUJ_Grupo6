@@ -1,5 +1,6 @@
 # Ignorar el entorno virtual
 venv/
+taller_argo/venv/
 # O, si tu entorno virtual tiene otro nombre:
 env/
 
@@ -11,6 +12,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+taller_argo/api/__pycache__/
 
 # Otros archivos que podrías querer ignorar
 .DS_Store
@@ -34,6 +36,7 @@ taller_locust_bu/
 taller_k8s_bu/
 taller_observabilidad_bu/
 taller_mlflow/minio/.minio.sys/
+pytest_bu/
 
 
 
