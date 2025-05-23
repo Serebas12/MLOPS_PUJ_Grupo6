@@ -143,7 +143,6 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: airflow
       _AIRFLOW_WWW_USER_PASSWORD: airflow
-    user: "50000:0"
     network_mode: "host"
     networks: []
 
@@ -152,5 +151,4 @@ volumes:
 
 networks:
   airflow_backend:
-    external: true
     name: airflow_backend

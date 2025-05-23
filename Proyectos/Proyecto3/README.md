@@ -459,5 +459,3 @@ Tratamiento de valores nulos o faltantes en variables específicas.
 Dado que no se identificaron problemas estructurales mayores ni inconsistencias graves, se decidió centrar los esfuerzos de limpieza en estos aspectos, para posteriormente cargar los datos procesados en el esquema clean_data, desde donde se alimentarán los pipelines de entrenamiento de modelos.
 
 **Nota:** La documentación oficial del dataset resultó ser una fuente clave para entender las relaciones entre las variables, los códigos de diagnóstico y los significados de las categorías incluidas.
-
-
