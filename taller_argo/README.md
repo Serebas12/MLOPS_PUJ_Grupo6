@@ -62,3 +62,59 @@ Eliminamos la prueba por completo
 docker compose down --rmi all 
 ```
 
+En el pc local se activa kubernetes en docker desktop para el desarrollo, se utiliza ya la construcción de las imágenes one by one
+
+```bash
+docker build -t blutenherz/penguin-api:v1 ./api
+docker build -t blutenherz/penguin-loadtester:v1 ./loadtester
+docker build -t blutenherz/penguin-api:v2 ./api
+docker build -t blutenherz/penguin-loadtester:v2 ./loadtester
+docker login # en caso de no haber logueado previamente
+docker push blutenherz/penguin-api:v1
+docker push blutenherz/penguin-loadtester:v1
+docker push blutenherz/penguin-api:v2
+docker push blutenherz/penguin-loadtester:v2
+```
+
+
+```bash
+kubectl cluster-info
+kubectl get nodes
+```
+
+```bash
+kubectl apply -f manifests/api-deployment.yaml
+kubectl apply -f manifests/script-deployment.yaml
+kubectl apply -f manifests/prometheus-deployment.yaml
+kubectl apply -f manifests/grafana-deployment.yaml
+kubectl get pods
+kubectl get svc
+kubectl get configmap
+# Revisión de que la api y el loadtester están en línea correctamente 
+kubectl port-forward svc/api 8989:8989
+kubectl port-forward svc/prometheus 9090:9090
+kubectl port-forward svc/grafana 3000:3000
+kubectl apply -k manifests/
+kubectl logs -l app=loadtester --tail=10 -f
+kubectl delete -f manifests/
+```
+
+
+```bash
+kubectl create configmap prometheus-config --from-file=prometheus.yml=manifests/prometheus-config/prometheus.yml --dry-run=client -o yaml > manifests/prometheus-configmap.yaml
+
+kubectl create configmap grafana-datasource --from-file=datasources.yaml=manifests/grafana-config/datasources.yaml --dry-run=client -o yaml > manifests/grafana-datasource.yaml
+
+kubectl create configmap grafana-dashboard-config --from-file=dashboards.yaml=manifests/grafana-config/dashboards.yaml --dry-run=client -o yaml > manifests/grafana-dashboard-config.yaml
+
+kubectl create configmap grafana-dashboard-json --from-file=dashboard.json=manifests/grafana-config/dashboard.json --dry-run=client -o yaml > manifests/grafana-dashboard-json.yaml
+
+```
+
+```plaintext
+localhost:9090
+predict_requests_total # consumo del endpoint /metrics de la api
+localhost:3000
+Predicciones FastAPI
+
+```
